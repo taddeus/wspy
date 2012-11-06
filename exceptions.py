@@ -1,0 +1,2 @@
+class SocketClosed(Exception):
+    pass
