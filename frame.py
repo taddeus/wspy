@@ -62,7 +62,7 @@ class Frame(object):
         else:
             raise Exception('the payload length is too damn high!')
 
-        if self.masking_key:
+        if mask:
             return header + self.masking_key + self.mask_payload()
 
         return header + self.payload
@@ -84,7 +84,7 @@ class Frame(object):
         return frames
 
     def __str__(self):
-        return '<Frame opcode=%c len=%d>' % (self.opcode, len(self.payload))
+        return '<Frame opcode=0x%X len=%d>' % (self.opcode, len(self.payload))
 
 
 def receive_fragments(sock):
