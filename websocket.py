@@ -93,18 +93,18 @@ class WebSocket(FrameReceiver):
         """
         pass
 
-    def onclose(self):
-        """
-        Called when the other end of the socket disconnects.
-        """
-        pass
-
     def onmessage(self, message):
         """
         Called when a message is received. `message' is a Message object, which
         can be constructed from a single frame or multiple fragmented frames.
         """
         raise NotImplemented
+
+    def onclose(self):
+        """
+        Called when the other end of the socket disconnects.
+        """
+        pass
 
     def close(self):
         raise SocketClosed()

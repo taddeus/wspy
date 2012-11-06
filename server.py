@@ -47,12 +47,6 @@ class Server(object):
         """
         pass
 
-    def onclose(self, client):
-        """
-        Called when a client disconnects.
-        """
-        pass
-
     def onmessage(self, client, message):
         """
         Called when a message is received from some client. `message' is a
@@ -60,14 +54,26 @@ class Server(object):
         """
         raise NotImplemented
 
+    def onclose(self, client):
+        """
+        Called when a client disconnects.
+        """
+        pass
+
 
 class Client(WebSocket):
     def __init__(self, server, sock, address):
         super(Client, self).__init__(sock, address)
         self.server = server
 
-    def handle_message(self, message):
+    def onopen(self):
+        self.server.onopen(self)
+
+    def onmessage(self, message):
         self.server.onmessage(self, message)
+
+    def onclose(self):
+        self.server.onclose(self, message)
 
     def __str__(self):
         return '<Client at %s:%d>' % self.address
