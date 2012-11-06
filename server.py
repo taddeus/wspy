@@ -69,7 +69,7 @@ class Client(WebSocket):
         self.server.onmessage(self, message)
 
     def onclose(self):
-        self.server.onclose(self, message)
+        self.server.onclose(self)
 
     def __str__(self):
         return '<Client at %s:%d>' % self.address

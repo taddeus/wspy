@@ -87,74 +87,55 @@ class Frame(object):
         return '<Frame opcode=%c len=%d>' % (self.opcode, len(self.payload))
 
 
-class FrameReceiver(object):
-    def __init__(self, sock):
-        self.sock = sock
+def receive_fragments(sock):
+    """
+    Receive a sequence of frames that belong together:
+    - An ititial frame with non-zero opcode
+    - Zero or more frames with opcode = 0 and final = False
+    - A final frame with opcpde = 0 and final = True
 
-    def assert_received(self, n, exact=False):
-        if self.nreceived < n:
-            recv = recv_exactly if exact else recv_at_least
-            received = recv(self.sock, n - self.nreceived)
+    The first and last frame may be the same frame, having a non-zero opcode
+    and final = True. Thus, this function returns a list of at least a single
+    frame.
+    """
+    fragments = [receive_frame(sock)]
 
-            if not len(received):
-                raise SocketClosed()
+    while not fragments[-1].final:
+        fragments.append(receive_frame(sock))
 
-            self.buf += received
-            self.nreceived = len(self.buf)
-
-    def receive_fragments(self):
-        fragments = [self.receive_frame()]
-
-        while not fragments[-1].final:
-            fragments.append(self.receive_frame())
-
-        return fragments
-
-    def receive_frame(self):
-        self.buf = ''
-        self.nreceived = 0
-        total_len = 2
-
-        self.assert_received(2)
-        b1, b2 = struct.unpack('!BB', self.buf[:2])
-        final = bool(b1 & 0x80)
-        rsv1 = bool(b1 & 0x40)
-        rsv2 = bool(b1 & 0x20)
-        rsv3 = bool(b1 & 0x10)
-        opcode = b1 & 0x0F
-        mask = bool(b2 & 0x80)
-        payload_len = b2 & 0x7F
-
-        if mask:
-            total_len += 4
-
-        if payload_len == 126:
-            self.assert_received(4)
-            total_len += 4 + struct.unpack('!H', self.buf[2:4])
-            key_start = 4
-        elif payload_len == 127:
-            self.assert_received(8)
-            total_len += 8 + struct.unpack('!Q', self.buf[2:10])
-            key_start = 10
-        else:
-            total_len += payload_len
-            key_start = 2
-
-        self.assert_received(total_len, exact=True)
-
-        if mask:
-            payload_start = key_start + 4
-            masking_key = self.buf[key_start:payload_start]
-            payload = mask(masking_key, self.buf[payload_start:])
-        else:
-            masking_key = ''
-            payload = self.buf[key_start:]
-
-        return Frame(opcode, payload, masking_key=masking_key, final=final,
-                      rsv1=rsv1, rsv2=rsv2, rsv3=rsv3)
+    return fragments
 
 
-def recv_exactly(sock, n):
+def receive_frame(sock):
+    """
+    Receive a single frame on the given socket.
+    """
+    b1, b2 = struct.unpack('!BB', recvn(sock, 2))
+    final = bool(b1 & 0x80)
+    rsv1 = bool(b1 & 0x40)
+    rsv2 = bool(b1 & 0x20)
+    rsv3 = bool(b1 & 0x10)
+    opcode = b1 & 0x0F
+    mask = bool(b2 & 0x80)
+    payload_len = b2 & 0x7F
+
+    if payload_len == 126:
+        payload_len = struct.unpack('!H', recvn(sock, 2))
+    elif payload_len == 127:
+        payload_len = struct.unpack('!Q', recvn(sock, 8))
+
+    if mask:
+        masking_key = recvn(sock, 4)
+        payload = mask(masking_key, recvn(payload_len))
+    else:
+        masking_key = ''
+        payload = recvn(payload_len)
+
+    return Frame(opcode, payload, masking_key=masking_key, final=final,
+                    rsv1=rsv1, rsv2=rsv2, rsv3=rsv3)
+
+
+def recvn(sock, n):
     """
     Keep receiving data from `sock' until exactly `n' bytes have been read.
     """
@@ -163,25 +144,14 @@ def recv_exactly(sock, n):
 
     while left > 0:
         received = sock.recv(left)
+
+        if not len(received):
+            raise SocketClosed()
+
         data += received
         left -= len(received)
 
     return received
-
-
-def recv_at_least(sock, n, at_least):
-    """
-    Keep receiving data from `sock' until at least `n' bytes have been read.
-    """
-    left = at_least
-    data = ''
-
-    while left > 0:
-        received = sock.recv(n)
-        data += received
-        left -= len(received)
-
-    return data
 
 
 def mask(key, original):

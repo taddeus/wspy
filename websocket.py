@@ -2,7 +2,7 @@ import re
 from hashlib import sha1
 from threading import Thread
 
-from frame import FrameReceiver
+from frame import receive_fragments
 from message import create_message
 from exceptions import SocketClosed
 
@@ -11,7 +11,7 @@ WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 WS_VERSION = '13'
 
 
-class WebSocket(FrameReceiver):
+class WebSocket(object):
     def __init__(self, sock, address, encoding=None):
         super(WebSocket, self).__init__(sock)
         self.address = address
@@ -27,7 +27,7 @@ class WebSocket(FrameReceiver):
         self.sock.sendall(frame.pack())
 
     def receive_message(self):
-        frames = self.receive_fragments()
+        frames = receive_fragments(self.sock)
         payload = ''.join([f.payload for f in frames])
         return create_message(frames[0].opcode, payload)
 
