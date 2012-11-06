@@ -27,7 +27,7 @@ class Server(object):
             try:
                 client_socket, address = self.sock.accept()
                 client = Client(self, client_socket, address)
-                client.handshake()
+                client.send_handshake()
                 self.clients.append(client)
                 logging.info('Registered client %s', client)
                 client.run_threaded()

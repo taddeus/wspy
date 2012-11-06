@@ -31,7 +31,7 @@ class WebSocket(object):
         payload = ''.join([f.payload for f in frames])
         return create_message(frames[0].opcode, payload)
 
-    def handshake(self):
+    def send_handshake(self):
         raw_headers = self.sock.recv(512)
 
         if self.encoding:
