@@ -126,10 +126,10 @@ def receive_frame(sock):
 
     if mask:
         masking_key = recvn(sock, 4)
-        payload = mask(masking_key, recvn(payload_len))
+        payload = mask(masking_key, recvn(sock, payload_len))
     else:
         masking_key = ''
-        payload = recvn(payload_len)
+        payload = recvn(sock, payload_len)
 
     return Frame(opcode, payload, masking_key=masking_key, final=final,
                     rsv1=rsv1, rsv2=rsv2, rsv3=rsv3)
