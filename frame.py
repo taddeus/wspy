@@ -23,10 +23,14 @@ class Frame(object):
             rsv2=False, rsv3=False):
         """
         Create a new frame.
+
         `opcode' is one of the constants as defined above.
+
         `payload' is a string of bytes containing the data sendt in the frame.
+
         `final` is a boolean indicating whether this frame is the last in a
         chain of fragments.
+
         `rsv1', `rsv2' and `rsv3' are booleans indicating bit values for RSV1,
         RVS2 and RSV3, which are only non-zero if defined so by extensions.
         """
@@ -86,6 +90,18 @@ class Frame(object):
         return mask(self.masking_key, self.payload)
 
     def fragment(self, fragment_size, mask=False):
+        """
+        Fragment the frame into a chain of fragment frames, as explained in the
+        docs of the function receive_fragments().
+
+        `fragment_size' indicates the maximum payload size of each fragment.
+        The payload of the original frame is split into one or more parts, and
+        each part is converted to a Frame instance.
+
+        `mask' is a boolean (default False) indicating whether the payloads
+        should be masked. If True, each frame is assigned a randomly generated
+        masking key.
+        """
         frames = []
 
         for start in range(0, len(self.payload), fragment_size):
@@ -123,7 +139,7 @@ def receive_fragments(sock):
 
 def receive_frame(sock):
     """
-    Receive a single frame on the given socket.
+    Receive a single frame on socket `sock'.
     """
     b1, b2 = struct.unpack('!BB', recvn(sock, 2))
 
