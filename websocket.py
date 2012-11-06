@@ -1,0 +1,3 @@
+class Websocket(object):
+    pass
+
