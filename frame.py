@@ -139,19 +139,17 @@ def recvn(sock, n):
     """
     Keep receiving data from `sock' until exactly `n' bytes have been read.
     """
-    left = n
     data = ''
 
-    while left > 0:
-        received = sock.recv(left)
+    while len(data) < n:
+        received = sock.recv(n - len(data))
 
         if not len(received):
             raise SocketClosed()
 
         data += received
-        left -= len(received)
 
-    return received
+    return data
 
 
 def mask(key, original):
