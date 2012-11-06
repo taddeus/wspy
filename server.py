@@ -26,14 +26,10 @@ class Server(object):
         while True:
             try:
                 client_socket, address = self.sock.accept()
-                logging.debug('Attempting handshake with %s:%d' % address)
-                self.handshake(client_socket)
-
                 client = Client(self, client_socket, address)
+                client.handshake()
                 self.clients.append(client)
                 logging.info('Registered client %s', client)
-                self.onopen(client)
-
                 client.run_threaded()
             except KeyboardInterrupt:
                 logging.info('Received interrupt, stopping server...')
