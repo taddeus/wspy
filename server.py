@@ -29,7 +29,7 @@ class Server(object):
                 logging.debug('Attempting handshake with %s:%d' % address)
                 self.handshake(client_socket)
 
-                client = Client(client_socket, address, self)
+                client = Client(self, client_socket, address)
                 self.clients.append(client)
                 logging.info('Registered client %s', client)
                 self.onopen(client)
