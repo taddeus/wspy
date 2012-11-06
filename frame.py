@@ -173,16 +173,3 @@ def mask(key, original):
         masked[i] ^= key[i % 4]
 
     return masked
-
-
-def concat_frames(frames):
-    """
-    Create a new Frame object with the concatenated payload of the given list
-    of frames.
-    """
-    assert len(frames)
-    first = frames[0]
-    assert first.opcode != 0
-    assert frames[-1].final
-    return Frame(first.opcode, ''.join([f.payload for f in frames]),
-                 rsv1=first.rsv1, rsv2=first.rsv2, rsv3=first.rsv3)
