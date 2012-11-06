@@ -13,8 +13,23 @@ OPCODE_PONG = 0xA
 
 
 class Frame(object):
+    """
+    A Frame instance represents a web socket data frame as defined in RFC 6455.
+    To encoding a frame for sending it over a socket, use Frame.pack(). To
+    receive and decode a frame from a socket, use receive_frame() (or,
+    preferably, receive_fragments()).
+    """
     def __init__(self, opcode, payload, masking_key='', final=True, rsv1=False,
             rsv2=False, rsv3=False):
+        """
+        Create a new frame.
+        `opcode' is one of the constants as defined above.
+        `payload' is a string of bytes containing the data sendt in the frame.
+        `final` is a boolean indicating whether this frame is the last in a
+        chain of fragments.
+        `rsv1', `rsv2' and `rsv3' are booleans indicating bit values for RSV1,
+        RVS2 and RSV3, which are only non-zero if defined so by extensions.
+        """
         if len(masking_key)  not in (0, 4):
             raise ValueError('invalid masking key "%s"' % masking_key)
 
@@ -90,9 +105,9 @@ class Frame(object):
 def receive_fragments(sock):
     """
     Receive a sequence of frames that belong together:
-    - An ititial frame with non-zero opcode
+    - An initial frame with non-zero opcode
     - Zero or more frames with opcode = 0 and final = False
-    - A final frame with opcpde = 0 and final = True
+    - A final frame with opcode = 0 and final = True
 
     The first and last frame may be the same frame, having a non-zero opcode
     and final = True. Thus, this function returns a list of at least a single
@@ -111,11 +126,13 @@ def receive_frame(sock):
     Receive a single frame on the given socket.
     """
     b1, b2 = struct.unpack('!BB', recvn(sock, 2))
+
     final = bool(b1 & 0x80)
     rsv1 = bool(b1 & 0x40)
     rsv2 = bool(b1 & 0x20)
     rsv3 = bool(b1 & 0x10)
     opcode = b1 & 0x0F
+
     mask = bool(b2 & 0x80)
     payload_len = b2 & 0x7F
 
@@ -132,7 +149,7 @@ def receive_frame(sock):
         payload = recvn(sock, payload_len)
 
     return Frame(opcode, payload, masking_key=masking_key, final=final,
-                    rsv1=rsv1, rsv2=rsv2, rsv3=rsv3)
+                 rsv1=rsv1, rsv2=rsv2, rsv3=rsv3)
 
 
 def recvn(sock, n):
