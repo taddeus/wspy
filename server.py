@@ -69,6 +69,9 @@ class Client(WebSocket):
     def handle_message(self, message):
         self.server.onmessage(self, message)
 
+    def __str__(self):
+        return '<Client at %s:%d>' % self.address
+
 
 if __name__ == '__main__':
     import sys

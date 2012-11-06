@@ -108,7 +108,3 @@ class WebSocket(FrameReceiver):
 
     def close(self):
         raise SocketClosed()
-        self.onclose()
-
-    def __str__(self):
-        return '<Client at %s:%d>' % self.address
