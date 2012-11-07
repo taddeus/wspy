@@ -1,7 +1,6 @@
 import re
 import struct
 from hashlib import sha1
-from threading import Thread
 
 from frame import ControlFrame, receive_fragments, receive_frame, \
         OPCODE_CLOSE, OPCODE_PING, OPCODE_PONG
@@ -65,10 +64,10 @@ class WebSocket(object):
         payload = ''.join([f.payload for f in frames])
         return create_message(frames[0].opcode, payload)
 
-    def handshake(self):
+    def server_handshake(self):
         """
-        Execute a handshake with the other end point of the socket. If the HTTP
-        request headers read from the socket are invalid, an InvalidRequest
+        Execute a handshake as the server end point of the socket. If the HTTP
+        request headers sent by the client are invalid, an InvalidRequest
         exception is raised.
         """
         raw_headers = self.sock.recv(512).decode('utf-8', 'ignore')
@@ -141,15 +140,6 @@ class WebSocket(object):
             except Exception as e:
                 self.onexception(e)
 
-    def run_threaded(self, daemon=True):
-        """
-        Spawn a new thread that receives messages in an endless loop.
-        """
-        thread = Thread(target=self.receive_forever)
-        thread.daemon = daemon
-        thread.start()
-        return thread
-
     def send_close(self, code, reason):
         """
         Send a close control frame.
@@ -193,7 +183,7 @@ class WebSocket(object):
         self.sock.close()
 
         if frame.opcode != OPCODE_CLOSE:
-            raise ValueError('Expected close frame, got %s instead' % frame)
+            raise ValueError('expected close frame, got %s instead' % frame)
 
     def onopen(self):
         """

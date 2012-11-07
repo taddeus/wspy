@@ -1,9 +1,11 @@
 import socket
 import logging
 from traceback import format_exc
+from threading import Thread
 
 from websocket import WebSocket
 from exceptions import InvalidRequest
+from frame import CLOSE_NORMAL
 
 
 class Server(object):
@@ -26,10 +28,14 @@ class Server(object):
             try:
                 sock, address = self.sock.accept()
                 client = Client(self, sock, address)
-                client.handshake()
+
+                client.server_handshake()
                 self.clients.append(client)
                 logging.info('Registered client %s', client)
-                client.run_threaded()
+
+                thread = Thread(target=client.receive_forever)
+                thread.daemon = True
+                thread.start()
             except InvalidRequest as e:
                 logging.error('Invalid request: %s', e.message)
             except KeyboardInterrupt:
@@ -37,6 +43,12 @@ class Server(object):
                 break
             except Exception as e:
                 logging.error(format_exc(e))
+
+        self.quit_gracefully()
+
+    def quit_gracefully(self):
+        for client in self.clients:
+            client.close(CLOSE_NORMAL)
 
     def remove_client(self, client, code, reason):
         self.clients.remove(client)
@@ -71,6 +83,7 @@ class Client(WebSocket):
         super(Client, self).__init__(sock)
         self.server = server
         self.address = address
+        self.send_lock = Lock()
 
     def onopen(self):
         self.server.onopen(self)
