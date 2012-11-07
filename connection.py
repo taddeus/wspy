@@ -158,7 +158,7 @@ class Connection(object):
         """
         Called after the connection is initialized.
         """
-        pass
+        return NotImplemented
 
     def onmessage(self, message):
         """
@@ -173,22 +173,22 @@ class Connection(object):
         used to start a timeout handler for a PONG frame that is not received
         in time.
         """
-        pass
+        return NotImplemented
 
     def onpong(self, payload):
         """
         Called when a PONG control frame is received.
         """
-        pass
+        return NotImplemented
 
     def onclose(self, code, reason):
         """
         Called when the socket is closed by either end point.
         """
-        pass
+        return NotImplemented
 
     def onexception(self, e):
         """
         Handle a raised exception.
         """
-        pass
+        return NotImplemented
