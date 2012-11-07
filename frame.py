@@ -88,6 +88,7 @@ class Frame(object):
         elif payload_len < (1 << 63):
             header += struct.pack('!BQ', mask | 127, payload_len)
         else:
+            # FIXME: RFC 6455 defines an action for this...
             raise Exception('the payload length is too damn high!')
 
         if mask:
@@ -178,7 +179,7 @@ class ControlFrame(Frame):
 
 def receive_frame(sock):
     """
-    Receive a single frame on socket `sock`. The frame schme is explained in
+    Receive a single frame on socket `sock`. The frame scheme is explained in
     the docs of Frame.pack().
     """
     b1, b2 = struct.unpack('!BB', recvn(sock, 2))
