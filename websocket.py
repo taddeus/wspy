@@ -151,7 +151,10 @@ class WebSocket(object):
         return thread
 
     def send_close(self, code, reason):
-        payload = '' if code is None else struct.pack('!H', code)
+        """
+        Send a close control frame.
+        """
+        payload = '' if code is None else struct.pack('!H', code) + reason
         self.send_frame(ControlFrame(OPCODE_CLOSE, payload))
         self.close_frame_sent = True
 
