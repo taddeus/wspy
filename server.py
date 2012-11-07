@@ -3,11 +3,11 @@ import logging
 from traceback import format_exc
 
 from websocket import WebSocket
+from exceptions import InvalidRequest
 
 
 class Server(object):
-    def __init__(self, port, address='', log_level=logging.INFO, protocols=[],
-            encoding=None):
+    def __init__(self, port, address='', log_level=logging.INFO, protocols=[]):
         logging.basicConfig(level=log_level,
                 format='%(asctime)s: %(levelname)s: %(message)s',
                 datefmt='%H:%M:%S')
@@ -20,17 +20,18 @@ class Server(object):
 
         self.clients = []
         self.protocols = protocols
-        self.encoding = encoding
 
     def run(self):
         while True:
             try:
                 client_socket, address = self.sock.accept()
                 client = Client(self, client_socket, address)
-                client.send_handshake()
+                client.handshake()
                 self.clients.append(client)
                 logging.info('Registered client %s', client)
                 client.run_threaded()
+            except InvalidRequest as e:
+                logging.error('Invalid request: %s', e.message)
             except KeyboardInterrupt:
                 logging.info('Received interrupt, stopping server...')
                 break
@@ -78,4 +79,4 @@ class Client(WebSocket):
 if __name__ == '__main__':
     import sys
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 80
-    Server(port=port, log_level=logging.DEBUG, encoding='utf-8').run()
+    Server(port=port, log_level=logging.DEBUG).run()
