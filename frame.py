@@ -183,7 +183,8 @@ def receive_fragments(sock, control_frame_handler):
     frame.
 
     `control_frame_handler' is a callback function taking a single argument,
-    which is a Frame instance
+    which is a ControlFrame instance in case a control frame is received (this
+    may occur in the middle of a fragment chain).
     """
     fragments = []
 
