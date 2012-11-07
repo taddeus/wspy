@@ -26,8 +26,7 @@ class Frame(object):
     """
     A Frame instance represents a web socket data frame as defined in RFC 6455.
     To encoding a frame for sending it over a socket, use Frame.pack(). To
-    receive and decode a frame from a socket, use receive_frame() (or,
-    preferably, receive_fragments()).
+    receive and decode a frame from a socket, use receive_frame().
     """
     def __init__(self, opcode, payload, masking_key='', final=True, rsv1=False,
             rsv2=False, rsv3=False):
@@ -101,8 +100,14 @@ class Frame(object):
 
     def fragment(self, fragment_size, mask=False):
         """
-        Fragment the frame into a chain of fragment frames, as explained in the
-        docs of the function receive_fragments().
+        Fragment the frame into a chain of fragment frames:
+        - An initial frame with non-zero opcode
+        - Zero or more frames with opcode = 0 and final = False
+        - A final frame with opcode = 0 and final = True
+
+        The first and last frame may be the same frame, having a non-zero
+        opcode and final = True. Thus, this function returns a list containing
+        at least a single frame.
 
         `fragment_size` indicates the maximum payload size of each fragment.
         The payload of the original frame is split into one or more parts, and
@@ -169,38 +174,6 @@ class ControlFrame(Frame):
             reason = ''
 
         return code, reason
-
-
-def receive_fragments(sock, control_frame_handler):
-    """
-    Receive a sequence of frames that belong together on socket `sock`:
-    - An initial frame with non-zero opcode
-    - Zero or more frames with opcode = 0 and final = False
-    - A final frame with opcode = 0 and final = True
-
-    The first and last frame may be the same frame, having a non-zero opcode
-    and final = True. Thus, this function returns a list of at least a single
-    frame.
-
-    `control_frame_handler` is a callback function taking a single argument,
-    which is a ControlFrame instance in case a control frame is received (this
-    may occur in the middle of a fragment chain).
-    """
-    fragments = []
-
-    while not len(fragments) or not fragments[-1].final:
-        frame = receive_frame(sock)
-
-        if isinstance(frame, ControlFrame):
-            control_frame_handler(frame)
-
-            # No more receiving data after a close message
-            if frame.opcode == OPCODE_CLOSE:
-                break
-        else:
-            fragments.append(frame)
-
-    return fragments
 
 
 def receive_frame(sock):

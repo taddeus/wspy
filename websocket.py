@@ -1,69 +1,86 @@
 import re
-import struct
 import socket
 from hashlib import sha1
 
-from frame import ControlFrame, receive_fragments, receive_frame, \
-        OPCODE_CLOSE, OPCODE_PING, OPCODE_PONG
-from message import create_message
-from exceptions import InvalidRequest, SocketClosed, PingError
+from frame import receive_frame
+from exceptions import InvalidRequest
 
 
 WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 WS_VERSION = '13'
 
 
-class WebSocket(object):
+class websocket(object):
     """
-    A WebSocket upgrades a regular TCP socket to a web socket. The class
-    implements the handshake protocol as defined by RFC 6455, provides
-    abstracted methods for sending (optionally fragmented) messages, and
-    automatically handles control messages.
+    Implementation of web socket, upgrades a regular TCP socket to a websocket
+    using the HTTP handshakes and frame (un)packing, as specified by RFC 6455.
+
+    Server example:
+    >>> sock = websocket()
+    >>> sock.bind(('', 80))
+    >>> sock.listen()
+
+    >>> client = sock.accept()
+    >>> client.send(Frame(...))
+    >>> frame = client.recv()
+
+    Client example:
+    >>> sock = websocket()
+    >>> sock.connect(('kompiler.org', 80))
     """
-    def __init__(self, sock):
+    def __init__(self, wsprotocols=[], family=socket.AF_INET, proto=0):
         """
-        `sock` is a regular TCP socket instance.
+        Create aregular TCP socket of family `family` and protocol
+        `wsprotocols` is a list of supported protocol names.
         """
-        self.sock = sock
+        self.sock = socket.socket(family, socket.SOCK_STREAM, proto)
+        self.protocols = wsprotocols
 
-        self.received_close_params = None
-        self.close_frame_sent = False
+    def bind(self, address):
+        self.sock.bind(address)
 
-        self.ping_sent = False
-        self.ping_payload = None
+    def listen(self, backlog):
+        self.sock.listen(backlog)
 
-    def send_message(self, message, fragment_size=None):
-        if fragment_size is None:
-            self.send_frame(message.frame())
-        else:
-            map(self.send_frame, message.fragment(fragment_size))
+    def accept(self):
+        client, address = socket.socket.accept(self)
+        client = websocket(client)
+        client.server_handshake()
+        return client, address
 
-    def send_frame(self, frame):
-        self.sock.sendall(frame.pack())
+    def connect(self, address):
+        """
+        Equivalent to socket.connect(), but sends an HTTP handshake request
+        after connecting.
+        """
+        self.sock.sonnect(address)
+        self.client_handshake()
 
-    def handle_control_frame(self, frame):
-        if frame.opcode == OPCODE_CLOSE:
-            self.received_close_params = frame.unpack_close()
-        elif frame.opcode == OPCODE_PING:
-            # Respond with a pong message with identical payload
-            self.send_frame(ControlFrame(OPCODE_PONG, frame.payload))
-        elif frame.opcode == OPCODE_PONG:
-            # Assert that the PONG payload is identical to that of the PING
-            if not self.ping_sent:
-                raise PingError('received PONG while no PING was sent')
+    def send(self, *args):
+        """
+        Send a number of frames.
+        """
+        for frame in args:
+            self.sock.sendall(frame.pack())
 
-            self.ping_sent = False
+    def recv(self, n=1):
+        """
+        Receive exactly `n` frames. These can be either data frames or control
+        frames, or a combination of both.
+        """
+        return [receive_frame(self.sock) for i in xrange(n)]
 
-            if frame.payload != self.ping_payload:
-                raise PingError('received PONG with invalid payload')
+    def getpeername(self):
+        return self.sock.getpeername()
 
-            self.ping_payload = None
-            self.onpong(frame.payload)
+    def getsockname(self):
+        return self.sock.getpeername()
 
-    def receive_message(self):
-        frames = receive_fragments(self.sock, self.handle_control_frame)
-        payload = ''.join([f.payload for f in frames])
-        return create_message(frames[0].opcode, payload)
+    def setsockopt(self, level, optname, value):
+        self.sock.setsockopt(level, optname, value)
+
+    def getsockopt(self, level, optname):
+        return self.sock.getsockopt(level, optname)
 
     def server_handshake(self):
         """
@@ -120,168 +137,6 @@ class WebSocket(object):
 
         self.sock.send(shake + '\r\n')
 
-        self.onopen()
-
-    def receive_forever(self):
-        """
-        Receive and handle messages in an endless loop. A message may consist
-        of multiple data frames, but this is not visible for onmessage().
-        Control messages (or control frames) are handled automatically.
-        """
-        while True:
-            try:
-                self.onmessage(self, self.receive_message())
-
-                if self.received_close_params is not None:
-                    self.handle_close(*self.received_close_params)
-                    break
-            except SocketClosed:
-                self.onclose(None, '')
-                break
-            except Exception as e:
-                self.onexception(e)
-
-    def send_close(self, code, reason):
-        """
-        Send a close control frame.
-        """
-        payload = '' if code is None else struct.pack('!H', code) + reason
-        self.send_frame(ControlFrame(OPCODE_CLOSE, payload))
-        self.close_frame_sent = True
-
-    def send_ping(self, payload=''):
-        """
-        Send a ping control frame with an optional payload.
-        """
-        self.send_frame(ControlFrame(OPCODE_PING, payload))
-        self.ping_payload = payload
-        self.ping_sent = True
-        self.onping(payload)
-
-    def handle_close(self, code=None, reason=''):
-        """
-        Handle a close message by sending a response close message if no close
-        message was sent before, and closing the connection. The onclose()
-        handler is called afterwards.
-        """
-        if not self.close_frame_sent:
-            payload = '' if code is None else struct.pack('!H', code)
-            self.send_frame(ControlFrame(OPCODE_CLOSE, payload))
-
-        self.sock.close()
-        self.onclose(code, reason)
-
-    def close(self, code=None, reason=''):
-        """
-        Close the socket by sending a close message and waiting for a response
-        close message. The onclose() handler is called after the close message
-        has been sent, but before the response has been received.
-        """
-        self.send_close(code, reason)
-        # FIXME: swap the two lines below?
-        self.onclose(code, reason)
-        frame = receive_frame(self.sock)
-        self.sock.close()
-
-        if frame.opcode != OPCODE_CLOSE:
-            raise ValueError('expected close frame, got %s instead' % frame)
-
-    def onopen(self):
-        """
-        Called after the handshake has completed.
-        """
-        pass
-
-    def onmessage(self, message):
-        """
-        Called when a message is received. `message` is a Message object, which
-        can be constructed from a single frame or multiple fragmented frames.
-        """
-        return NotImplemented
-
-    def onping(self, payload):
-        """
-        Called after a ping control frame has been sent. This handler could be
-        used to start a timeout handler for a pong message that is not received
-        in time.
-        """
-        pass
-
-    def onpong(self, payload):
-        """
-        Called when a pong control frame is received.
-        """
-        pass
-
-    def onclose(self, code, reason):
-        """
-        Called when the socket is closed by either end point.
-        """
-        pass
-
-    def onexception(self, e):
-        """
-        Handle a raised exception.
-        """
-        pass
-
-
-class websocket(WebSocket):
-    """
-    Alternative implementation of web socket, extending the regular socket
-    object.
-    """
-    def __init__(self, family=socket.AF_INET, proto=0):
-        sock = socket.socket(family, socket.SOCK_STREAM, proto)
-        WebSocket.__init__(self, sock)
-
-    def bind(self, address):
-        self.sock.bind(address)
-
-    def listen(self, backlog):
-        self.sock.listen(backlog)
-
-    def accept(self):
-        client, address = socket.socket.accept(self)
-        client = websocket(client)
-        client.handshake()
-        return client, address
-
-    def recv(self):
-        """
-        Receive a sinfle frame.
-        """
-        return receive_frame(self.sock)
-
-    def send(self, frame):
-        """
-        Send a single frame.
-        """
-        self.send_frame(frame)
-
-    def sendall(self, frames):
-        """
-        Send a list of frames.
-        """
-        for frame in frames:
-            self.send(frame)
-
-    def getpeername(self):
-        return self.sock.getpeername()
-
-    def getsockname(self):
-        return self.sock.getpeername()
-
-    def setsockopt(self, level, optname, value):
-        self.sock.setsockopt(level, optname, value)
-
-    def getsockopt(self, level, optname):
-        return self.sock.getsockopt(level, optname)
-
-
-if __name__ == '__main__':
-    sock = websocket()
-    sock.bind(('', 80))
-    sock.listen()
-
-    client = sock.accept()
+    def client_handshake(self):
+        # TODO: implement HTTP request headers for client handshake
+        raise NotImplementedError()
