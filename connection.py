@@ -11,8 +11,8 @@ class Connection(object):
     fragmented) messages, which are Message instances. Control frames are
     handled automatically in the way specified by RFC 6455.
 
-    To use the Connection class, it should be extended and the exxtending class
-    should implement the on*() handlers.
+    To use the Connection class, it should be extended and the extending class
+    should implement the on*() event handlers.
     """
     def __init__(self, sock):
         """
