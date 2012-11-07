@@ -34,14 +34,14 @@ class Frame(object):
         """
         Create a new frame.
 
-        `opcode' is one of the constants as defined above.
+        `opcode` is one of the constants as defined above.
 
-        `payload' is a string of bytes containing the data sendt in the frame.
+        `payload` is a string of bytes containing the data sendt in the frame.
 
         `final` is a boolean indicating whether this frame is the last in a
         chain of fragments.
 
-        `rsv1', `rsv2' and `rsv3' are booleans indicating bit values for RSV1,
+        `rsv1`, `rsv2` and `rsv3` are booleans indicating bit values for RSV1,
         RVS2 and RSV3, which are only non-zero if defined so by extensions.
         """
         if len(masking_key)  not in (0, 4):
@@ -104,11 +104,11 @@ class Frame(object):
         Fragment the frame into a chain of fragment frames, as explained in the
         docs of the function receive_fragments().
 
-        `fragment_size' indicates the maximum payload size of each fragment.
+        `fragment_size` indicates the maximum payload size of each fragment.
         The payload of the original frame is split into one or more parts, and
         each part is converted to a Frame instance.
 
-        `mask' is a boolean (default False) indicating whether the payloads
+        `mask` is a boolean (default False) indicating whether the payloads
         should be masked. If True, each frame is assigned a randomly generated
         masking key.
         """
@@ -173,7 +173,7 @@ class ControlFrame(Frame):
 
 def receive_fragments(sock, control_frame_handler):
     """
-    Receive a sequence of frames that belong together on socket `sock':
+    Receive a sequence of frames that belong together on socket `sock`:
     - An initial frame with non-zero opcode
     - Zero or more frames with opcode = 0 and final = False
     - A final frame with opcode = 0 and final = True
@@ -182,7 +182,7 @@ def receive_fragments(sock, control_frame_handler):
     and final = True. Thus, this function returns a list of at least a single
     frame.
 
-    `control_frame_handler' is a callback function taking a single argument,
+    `control_frame_handler` is a callback function taking a single argument,
     which is a ControlFrame instance in case a control frame is received (this
     may occur in the middle of a fragment chain).
     """
@@ -205,7 +205,7 @@ def receive_fragments(sock, control_frame_handler):
 
 def receive_frame(sock):
     """
-    Receive a single frame on socket `sock'. The frame schme is explained in
+    Receive a single frame on socket `sock`. The frame schme is explained in
     the docs of Frame.pack().
     """
     b1, b2 = struct.unpack('!BB', recvn(sock, 2))
@@ -240,7 +240,7 @@ def receive_frame(sock):
 
 def recvn(sock, n):
     """
-    Keep receiving data from `sock' until exactly `n' bytes have been read.
+    Keep receiving data from `sock` until exactly `n` bytes have been read.
     """
     data = ''
 

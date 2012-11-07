@@ -22,7 +22,7 @@ class WebSocket(object):
     """
     def __init__(self, sock):
         """
-        `sock' is a regular TCP socket instance.
+        `sock` is a regular TCP socket instance.
         """
         self.sock = sock
 
@@ -200,7 +200,7 @@ class WebSocket(object):
 
     def onmessage(self, message):
         """
-        Called when a message is received. `message' is a Message object, which
+        Called when a message is received. `message` is a Message object, which
         can be constructed from a single frame or multiple fragmented frames.
         """
         return NotImplemented
