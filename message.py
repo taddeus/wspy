@@ -1,9 +1,7 @@
-from frame import Frame, OPCODE_TEXT, OPCODE_BINARY, OPCODE_CLOSE, \
-        OPCODE_PING, OPCODE_PONG
+from frame import Frame, OPCODE_TEXT, OPCODE_BINARY
 
 
-__all__ = ['Message', 'TextMessage', 'BinaryMessage', 'CloseMessage',
-           'PingMessage', 'PongMessage']
+__all__ = ['Message', 'TextMessage', 'BinaryMessage']
 
 
 class Message(object):
@@ -32,27 +30,9 @@ class BinaryMessage(Message):
         super(TextMessage, self).__init__(OPCODE_BINARY, payload)
 
 
-class CloseMessage(Message):
-    def __init__(self, payload):
-        super(TextMessage, self).__init__(OPCODE_CLOSE, payload)
-
-
-class PingMessage(Message):
-    def __init__(self, payload):
-        super(TextMessage, self).__init__(OPCODE_PING, payload)
-
-
-class PongMessage(Message):
-    def __init__(self, payload):
-        super(TextMessage, self).__init__(OPCODE_PONG, payload)
-
-
 OPCODE_CLASS_MAP = {
     OPCODE_TEXT: TextMessage,
     OPCODE_BINARY: BinaryMessage,
-    OPCODE_CLOSE: CloseMessage,
-    OPCODE_PING: PingMessage,
-    OPCODE_PONG: PongMessage,
 }
 
 

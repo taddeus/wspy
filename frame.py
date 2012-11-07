@@ -11,6 +11,16 @@ OPCODE_CLOSE = 0x8
 OPCODE_PING = 0x9
 OPCODE_PONG = 0xA
 
+CLOSE_NORMAL = 1000
+CLOSE_GOING_AWAY = 1001
+CLOSE_PROTOCOL_ERROR = 1002
+CLOSE_NOACCEPT_DTYPE = 1003
+CLOSE_INVALID_DATA = 1007
+CLOSE_POLICY = 1008
+CLOSE_MESSAGE_TOOBIG = 1009
+CLOSE_MISSING_EXTENSIONS = 1010
+CLOSE_UNABLE = 1011
+
 
 class Frame(object):
     """
@@ -115,12 +125,55 @@ class Frame(object):
         return frames
 
     def __str__(self):
-        return '<Frame opcode=0x%X len=%d>' % (self.opcode, len(self.payload))
+        s = '<%s opcode=0x%X len=%d' \
+            % (self.__class__.__name__, self.opcode, len(self.payload))
+
+        if self.masking_key:
+            s += ' masking_key=%4s' % self.masking_key
+
+        return s + '>'
 
 
-def receive_fragments(sock):
+class ControlFrame(Frame):
     """
-    Receive a sequence of frames that belong together:
+    A Control frame is a frame with an opcode OPCODE_CLOSE, OPCODE_PING or
+    OPCODE_PONG. These frames must be handled as defined by RFC 6455, and
+    """
+    def fragment(self, fragment_size, mask=False):
+        """
+        Control frames must not be fragmented.
+        """
+        raise TypeError('control frames must not be fragmented')
+
+    def pack(self):
+        """
+        Same as Frame.pack(), but asserts that the payload size does not exceed
+        125 bytes.
+        """
+        if len(self.payload) > 125:
+            raise ValueError('control frames must not be larger than 125' \
+                             'bytes')
+
+        return Frame.pack(self)
+
+    def unpack_close(self):
+        """
+        Unpack a close message into a status code and a reason. If no payload
+        is given, the code is None and the reason is an empty string.
+        """
+        if self.payload:
+            code = struct.unpack('!H', self.payload[:2])
+            reason = self.payload[2:]
+        else:
+            code = None
+            reason = ''
+
+        return code, reason
+
+
+def receive_fragments(sock, control_frame_handler):
+    """
+    Receive a sequence of frames that belong together on socket `sock':
     - An initial frame with non-zero opcode
     - Zero or more frames with opcode = 0 and final = False
     - A final frame with opcode = 0 and final = True
@@ -128,18 +181,31 @@ def receive_fragments(sock):
     The first and last frame may be the same frame, having a non-zero opcode
     and final = True. Thus, this function returns a list of at least a single
     frame.
-    """
-    fragments = [receive_frame(sock)]
 
-    while not fragments[-1].final:
-        fragments.append(receive_frame(sock))
+    `control_frame_handler' is a callback function taking a single argument,
+    which is a Frame instance
+    """
+    fragments = []
+
+    while not len(fragments) or not fragments[-1].final:
+        frame = receive_frame(sock)
+
+        if isinstance(frame, ControlFrame):
+            control_frame_handler(frame)
+
+            # No more receiving data after a close message
+            if frame.opcode == OPCODE_CLOSE:
+                break
+        else:
+            fragments.append(frame)
 
     return fragments
 
 
 def receive_frame(sock):
     """
-    Receive a single frame on socket `sock'.
+    Receive a single frame on socket `sock'. The frame schme is explained in
+    the docs of Frame.pack().
     """
     b1, b2 = struct.unpack('!BB', recvn(sock, 2))
 
@@ -164,8 +230,11 @@ def receive_frame(sock):
         masking_key = ''
         payload = recvn(sock, payload_len)
 
-    return Frame(opcode, payload, masking_key=masking_key, final=final,
-                 rsv1=rsv1, rsv2=rsv2, rsv3=rsv3)
+    # Control frames have most significant bit 1
+    cls = ControlFrame if opcode & 0x8 else Frame
+
+    return cls(opcode, payload, masking_key=masking_key, final=final,
+               rsv1=rsv1, rsv2=rsv2, rsv3=rsv3)
 
 
 def recvn(sock, n):
