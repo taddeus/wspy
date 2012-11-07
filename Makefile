@@ -1,7 +1,7 @@
 .PHONY: test clean
 
 test:
-	python test.py
+	@python test.py
 
 clean:
 	rm `find -name \*.pyc`
