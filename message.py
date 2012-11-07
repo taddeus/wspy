@@ -16,7 +16,7 @@ class Message(object):
         return self.frame().fragment(fragment_size, mask)
 
     def __str__(self):
-        return '<%s opcode=%x size=%d>' \
+        return '<%s opcode=0x%X size=%d>' \
                % (self.__class__.__name__, self.opcode, len(self.payload))
 
 
