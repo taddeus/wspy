@@ -43,6 +43,12 @@ class websocket(object):
         self.sock.listen(backlog)
 
     def accept(self):
+        """
+        Equivalent to socket.accept(), but transforms the socket into a
+        websocket instance and sends a server handshake (after receiving a
+        client handshake). Note that the handshake may raise an InvalidRequest
+        exception.
+        """
         client, address = socket.socket.accept(self)
         client = websocket(client)
         client.server_handshake()
@@ -50,7 +56,7 @@ class websocket(object):
 
     def connect(self, address):
         """
-        Equivalent to socket.connect(), but sends an HTTP handshake request
+        Equivalent to socket.connect(), but sends an client handshake request
         after connecting.
         """
         self.sock.sonnect(address)
