@@ -22,12 +22,12 @@ class Message(object):
 
 class TextMessage(Message):
     def __init__(self, payload):
-        super(TextMessage, self).__init__(OPCODE_TEXT, payload)
+        super(TextMessage, self).__init__(OPCODE_TEXT, payload.encode('utf-8'))
 
 
 class BinaryMessage(Message):
     def __init__(self, payload):
-        super(TextMessage, self).__init__(OPCODE_BINARY, payload)
+        super(BinaryMessage, self).__init__(OPCODE_BINARY, payload)
 
 
 OPCODE_CLASS_MAP = {
