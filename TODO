@@ -1,2 +1,4 @@
 - Unit tests
+- Mutual exclusion in Server/Client (multiple threads sending stuff at the same
+  time will go wrong)
 - Extensions

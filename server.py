@@ -1,23 +1,24 @@
 import socket
 import logging
 from traceback import format_exc
-from threading import Thread, Lock
+from threading import Thread
 
-from websocket import WebSocket
-from exceptions import InvalidRequest
+from websocket import websocket
+from connection import Connection
 from frame import CLOSE_NORMAL
+from exceptions import InvalidRequest
 
 
 class Server(object):
-    def __init__(self, port, address='', log_level=logging.INFO, protocols=[]):
-        logging.basicConfig(level=log_level,
+    def __init__(self, port, hostname='', loglevel=logging.INFO, protocols=[]):
+        logging.basicConfig(level=loglevel,
                 format='%(asctime)s: %(levelname)s: %(message)s',
                 datefmt='%H:%M:%S')
 
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock = websocket()
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        logging.info('Starting server at %s:%d', address, port)
-        self.sock.bind((address, port))
+        logging.info('Starting server at %s:%d', hostname, port)
+        self.sock.bind((hostname, port))
         self.sock.listen(5)
 
         self.clients = []
@@ -27,9 +28,8 @@ class Server(object):
         while True:
             try:
                 sock, address = self.sock.accept()
-                client = Client(self, sock, address)
 
-                client.server_handshake()
+                client = Client(self, sock, address)
                 self.clients.append(client)
                 logging.info('Registered client %s', client)
 
@@ -73,22 +73,18 @@ class Server(object):
             msg += ' [%d]' % code
 
         if len(reason):
-            msg += ' "%s"' % reason
+            msg += ': ' + reason
 
         logging.debug(msg)
 
+    def onexception(self, client, e):
+        logging.error(format_exc(e))
 
-class Client(WebSocket):
-    def __init__(self, server, sock, address):
+
+class Client(Connection):
+    def __init__(self, server, sock):
         super(Client, self).__init__(sock)
         self.server = server
-        self.address = address
-        self.send_lock = Lock()
-
-    def send_frame(self, frame):
-        self.send_lock.acquire()
-        WebSocket.send_frame(self, frame)
-        self.send_lock.release()
 
     def onopen(self):
         self.server.onopen(self)
@@ -106,13 +102,13 @@ class Client(WebSocket):
         self.server.remove_client(self, code, reason)
 
     def onexception(self, e):
-        logging.error(format_exc(e))
+        self.server.onexception(self, e)
 
     def __str__(self):
-        return '<Client at %s:%d>' % self.address
+        return '<Client at %s:%d>' % self.sock.getpeername()
 
 
 if __name__ == '__main__':
     import sys
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 80
-    Server(port, log_level=logging.DEBUG).run()
+    Server(port, loglevel=logging.DEBUG).run()
