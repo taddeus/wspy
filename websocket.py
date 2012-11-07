@@ -14,9 +14,8 @@ WS_VERSION = '13'
 
 
 class WebSocket(object):
-    def __init__(self, sock, address, encoding=None):
+    def __init__(self, sock, encoding=None):
         self.sock = sock
-        self.address = address
         self.encoding = encoding
 
         self.received_close_params = None
