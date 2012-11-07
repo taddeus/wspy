@@ -40,22 +40,21 @@ class Server(object):
 
     def onopen(self, client):
         """
-        Called when a new client connects.
+        Called after `client' has completed its handshake.
         """
-        pass
+        logging.debug('Opened socket to client %s' % client)
 
     def onmessage(self, client, message):
         """
-        Called when a message is received from some client. `message' is a
-        Message object
+        Called when Message object `message' is received from `client'.
         """
-        return NotImplemented
+        logging.debug('Received %s from %s' % (message, client))
 
     def onclose(self, client):
         """
-        Called when a client disconnects.
+        Called when `client' disconnects.
         """
-        pass
+        logging.debug('Closed socket to client %s' % client)
 
 
 class Client(WebSocket):
@@ -69,6 +68,12 @@ class Client(WebSocket):
     def onmessage(self, message):
         self.server.onmessage(self, message)
 
+    def onping(self, payload):
+        logging.debug('Sent ping "%s" to %s' % (payload, self))
+
+    def onpong(self, payload):
+        logging.debug('Received pong "%s" from %s' % (payload, self))
+
     def onclose(self):
         self.server.onclose(self)
 
@@ -79,4 +84,4 @@ class Client(WebSocket):
 if __name__ == '__main__':
     import sys
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 80
-    Server(port=port, log_level=logging.DEBUG).run()
+    Server(port, log_level=logging.DEBUG).run()
