@@ -1,5 +1,6 @@
 import re
 import struct
+import socket
 from hashlib import sha1
 
 from frame import ControlFrame, receive_fragments, receive_frame, \
@@ -223,3 +224,64 @@ class WebSocket(object):
         Handle a raised exception.
         """
         pass
+
+
+class websocket(WebSocket):
+    """
+    Alternative implementation of web socket, extending the regular socket
+    object.
+    """
+    def __init__(self, family=socket.AF_INET, proto=0):
+        sock = socket.socket(family, socket.SOCK_STREAM, proto)
+        WebSocket.__init__(self, sock)
+
+    def bind(self, address):
+        self.sock.bind(address)
+
+    def listen(self, backlog):
+        self.sock.listen(backlog)
+
+    def accept(self):
+        client, address = socket.socket.accept(self)
+        client = websocket(client)
+        client.handshake()
+        return client, address
+
+    def recv(self):
+        """
+        Receive a sinfle frame.
+        """
+        return receive_frame(self.sock)
+
+    def send(self, frame):
+        """
+        Send a single frame.
+        """
+        self.send_frame(frame)
+
+    def sendall(self, frames):
+        """
+        Send a list of frames.
+        """
+        for frame in frames:
+            self.send(frame)
+
+    def getpeername(self):
+        return self.sock.getpeername()
+
+    def getsockname(self):
+        return self.sock.getpeername()
+
+    def setsockopt(self, level, optname, value):
+        self.sock.setsockopt(level, optname, value)
+
+    def getsockopt(self, level, optname):
+        return self.sock.getsockopt(level, optname)
+
+
+if __name__ == '__main__':
+    sock = websocket()
+    sock.bind(('', 80))
+    sock.listen()
+
+    client = sock.accept()
