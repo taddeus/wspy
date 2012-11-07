@@ -87,6 +87,9 @@ class Client(WebSocket):
     def onclose(self, code, reason):
         self.server.remove_client(self, code, reason)
 
+    def onexception(self, e):
+        logging.error(format_exc(e))
+
     def __str__(self):
         return '<Client at %s:%d>' % self.address
 

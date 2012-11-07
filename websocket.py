@@ -128,15 +128,18 @@ class WebSocket(object):
         of multiple data frames, but this is not visible for onmessage().
         Control messages (or control frames) are handled automatically.
         """
-        try:
-            while True:
+        while True:
+            try:
                 self.onmessage(self, self.receive_message())
 
                 if self.received_close_params is not None:
                     self.handle_close(*self.received_close_params)
                     break
-        except SocketClosed:
-            self.onclose(None, '')
+            except SocketClosed:
+                self.onclose(None, '')
+                break
+            except Exception as e:
+                self.onexception(e)
 
     def run_threaded(self, daemon=True):
         """
@@ -219,5 +222,11 @@ class WebSocket(object):
     def onclose(self, code, reason):
         """
         Called when the socket is closed by either end point.
+        """
+        pass
+
+    def onexception(self, e):
+        """
+        Handle a raised exception.
         """
         pass
