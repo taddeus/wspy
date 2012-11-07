@@ -114,6 +114,11 @@ class WebSocket(object):
         self.onopen()
 
     def receive_forever(self):
+        """
+        Receive and handle messages in an endless loop. A message may consist
+        of multiple data frames, but this is not visible for onmessage().
+        Control messages (or control frames) are handled automatically.
+        """
         try:
             while True:
                 self.onmessage(self, self.receive_message())
@@ -125,9 +130,13 @@ class WebSocket(object):
             self.onclose(None, '')
 
     def run_threaded(self, daemon=True):
-        t = Thread(target=self.receive_forever)
-        t.daemon = daemon
-        t.start()
+        """
+        Spawn a new thread that receives messages in an endless loop.
+        """
+        thread = Thread(target=self.receive_forever)
+        thread.daemon = daemon
+        thread.start()
+        return thread
 
     def send_close(self, code, reason):
         payload = '' if code is None else struct.pack('!H', code)
