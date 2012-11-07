@@ -49,7 +49,7 @@ class Server(object):
         Called when a message is received from some client. `message' is a
         Message object
         """
-        raise NotImplemented
+        return NotImplemented
 
     def onclose(self, client):
         """
