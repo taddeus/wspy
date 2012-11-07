@@ -150,7 +150,7 @@ class WebSocket(object):
         self.send_frame(ControlFrame(OPCODE_PING, payload))
         self.ping_payload = payload
         self.ping_sent = True
-        self.onping()
+        self.onping(payload)
 
     def handle_close(self, code=None, reason=''):
         """
