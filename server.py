@@ -39,21 +39,18 @@ class Server(object):
                 logging.error(format_exc(e))
 
     def onopen(self, client):
-        """
-        Called after `client' has completed its handshake.
-        """
         logging.debug('Opened socket to client %s' % client)
 
     def onmessage(self, client, message):
-        """
-        Called when Message object `message' is received from `client'.
-        """
         logging.debug('Received %s from %s' % (message, client))
 
+    def onping(self, client, payload):
+        logging.debug('Sent ping "%s" to %s' % (payload, client))
+
+    def onpong(self, client, payload):
+        logging.debug('Received pong "%s" from %s' % (payload, client))
+
     def onclose(self, client):
-        """
-        Called when `client' disconnects.
-        """
         logging.debug('Closed socket to client %s' % client)
 
 
@@ -69,10 +66,10 @@ class Client(WebSocket):
         self.server.onmessage(self, message)
 
     def onping(self, payload):
-        logging.debug('Sent ping "%s" to %s' % (payload, self))
+        self.server.onping(self, payload)
 
     def onpong(self, payload):
-        logging.debug('Received pong "%s" from %s' % (payload, self))
+        self.server.onpong(self, payload)
 
     def onclose(self):
         self.server.onclose(self)
