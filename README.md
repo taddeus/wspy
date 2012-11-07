@@ -1,4 +1,5 @@
-*twspy* is a standalone implementation of web sockets for Python.
+**twspy** is a standalone implementation of web sockets for Python, defined by
+[RFC 6455](http://tools.ietf.org/html/rfc6455).
 
 - The websocket.WebSocket class upgrades a regular socket to a web socket.
 - message.py contains classes that abstract messages sent over the socket.
