@@ -14,7 +14,16 @@ WS_VERSION = '13'
 
 
 class WebSocket(object):
+    """
+    A WebSocket upgrades a regular TCP socket to a web socket. The class
+    implements the handshake protocol as defined by RFC 6455, provides
+    abstracted methods for sending (optionally fragmented) messages, and
+    automatically handles control messages.
+    """
     def __init__(self, sock):
+        """
+        `sock' is a regular TCP socket instance.
+        """
         self.sock = sock
 
         self.received_close_params = None
@@ -60,7 +69,7 @@ class WebSocket(object):
         """
         Execute a handshake with the other end point of the socket. If the HTTP
         request headers read from the socket are invalid, an InvalidRequest
-        exception will be raised.
+        exception is raised.
         """
         raw_headers = self.sock.recv(512).decode('utf-8', 'ignore')
 
