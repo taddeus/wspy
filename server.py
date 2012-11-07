@@ -1,7 +1,7 @@
 import socket
 import logging
 from traceback import format_exc
-from threading import Thread
+from threading import Thread, Lock
 
 from websocket import WebSocket
 from exceptions import InvalidRequest
@@ -84,6 +84,11 @@ class Client(WebSocket):
         self.server = server
         self.address = address
         self.send_lock = Lock()
+
+    def send_frame(self, frame):
+        self.send_lock.acquire()
+        WebSocket.send_frame(self, frame)
+        self.send_lock.release()
 
     def onopen(self):
         self.server.onopen(self)
