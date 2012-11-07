@@ -24,8 +24,8 @@ class Server(object):
     def run(self):
         while True:
             try:
-                client_socket, address = self.sock.accept()
-                client = Client(self, client_socket, address)
+                sock, address = self.sock.accept()
+                client = Client(self, sock, address)
                 client.handshake()
                 self.clients.append(client)
                 logging.info('Registered client %s', client)
@@ -38,8 +38,12 @@ class Server(object):
             except Exception as e:
                 logging.error(format_exc(e))
 
+    def remove_client(self, client, code, reason):
+        self.clients.remove(client)
+        self.onclose(client, code, reason)
+
     def onopen(self, client):
-        logging.debug('Opened socket to client %s' % client)
+        logging.debug('Opened socket to %s' % client)
 
     def onmessage(self, client, message):
         logging.debug('Received %s from %s' % (message, client))
@@ -50,14 +54,23 @@ class Server(object):
     def onpong(self, client, payload):
         logging.debug('Received pong "%s" from %s' % (payload, client))
 
-    def onclose(self, client):
-        logging.debug('Closed socket to client %s' % client)
+    def onclose(self, client, code, reason):
+        msg = 'Closed socket to %s' % client
+
+        if code is not None:
+            msg += ' [%d]' % code
+
+        if len(reason):
+            msg += ' "%s"' % reason
+
+        logging.debug(msg)
 
 
 class Client(WebSocket):
     def __init__(self, server, sock, address):
-        super(Client, self).__init__(sock, address)
+        super(Client, self).__init__(sock)
         self.server = server
+        self.address = address
 
     def onopen(self):
         self.server.onopen(self)
@@ -71,8 +84,8 @@ class Client(WebSocket):
     def onpong(self, payload):
         self.server.onpong(self, payload)
 
-    def onclose(self):
-        self.server.onclose(self)
+    def onclose(self, code, reason):
+        self.server.remove_client(self, code, reason)
 
     def __str__(self):
         return '<Client at %s:%d>' % self.address
