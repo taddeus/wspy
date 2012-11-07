@@ -38,6 +38,6 @@ OPCODE_CLASS_MAP = {
 
 def create_message(opcode, payload):
     if opcode in OPCODE_CLASS_MAP:
-        return OPCODE_CLASS_MAP(payload)
+        return OPCODE_CLASS_MAP[opcode](payload)
 
     return Message(opcode, payload)
