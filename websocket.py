@@ -15,7 +15,7 @@ WS_VERSION = '13'
 
 class WebSocket(object):
     def __init__(self, sock, address, encoding=None):
-        super(WebSocket, self).__init__(sock)
+        self.sock = sock
         self.address = address
         self.encoding = encoding
 
