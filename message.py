@@ -9,8 +9,8 @@ class Message(object):
         self.opcode = opcode
         self.payload = payload
 
-    def frame(self):
-        return Frame(self.opcode, self.payload)
+    def frame(self, mask=False):
+        return Frame(self.opcode, self.payload, mask=mask)
 
     def fragment(self, fragment_size, mask=False):
         return self.frame().fragment(fragment_size, mask)

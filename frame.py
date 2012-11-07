@@ -28,8 +28,8 @@ class Frame(object):
     To encoding a frame for sending it over a socket, use Frame.pack(). To
     receive and decode a frame from a socket, use receive_frame().
     """
-    def __init__(self, opcode, payload, masking_key='', final=True, rsv1=False,
-            rsv2=False, rsv3=False):
+    def __init__(self, opcode, payload, masking_key='', mask=False, final=True,
+            rsv1=False, rsv2=False, rsv3=False):
         """
         Create a new frame.
 
@@ -37,12 +37,19 @@ class Frame(object):
 
         `payload` is a string of bytes containing the data sendt in the frame.
 
+        `masking_key` is an optional custom key to use for masking, or `mask`
+        can be used instead to let this constructor generate a random masking
+        key.
+
         `final` is a boolean indicating whether this frame is the last in a
         chain of fragments.
 
         `rsv1`, `rsv2` and `rsv3` are booleans indicating bit values for RSV1,
         RVS2 and RSV3, which are only non-zero if defined so by extensions.
         """
+        if mask:
+            masking_key = urandom(4)
+
         if len(masking_key)  not in (0, 4):
             raise ValueError('invalid masking key "%s"' % masking_key)
 
@@ -122,8 +129,8 @@ class Frame(object):
 
         for start in range(0, len(self.payload), fragment_size):
             payload = self.payload[start:start + fragment_size]
-            key = urandom(4) if mask else ''
-            frames.append(Frame(OPCODE_CONTINUATION, payload, key, False))
+            frames.append(Frame(OPCODE_CONTINUATION, payload, mask=mask,
+                                final=False))
 
         frames[0].opcode = self.opcode
         frames[-1].final = True

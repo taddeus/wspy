@@ -28,16 +28,16 @@ class Connection(object):
 
         self.onopen()
 
-    def send(self, message, fragment_size=None):
+    def send(self, message, fragment_size=None, mask=False):
         """
         Send a message. If `fragment_size` is specified, the message is
         fragmented into multiple frames whose payload size does not extend
         `fragment_size`.
         """
         if fragment_size is None:
-            self.sock.send(message.frame())
+            self.sock.send(message.frame(mask=mask))
         else:
-            self.sock.send(*message.fragment(fragment_size))
+            self.sock.send(*message.fragment(fragment_size, mask=mask))
 
     def receive(self):
         """
