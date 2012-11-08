@@ -32,8 +32,8 @@ class websocket(object):
     >>> sock = websocket()
     >>> sock.connect(('kompiler.org', 80))
     """
-    def __init__(self, protocols=[], extensions=[], family=socket.AF_INET,
-            proto=0):
+    def __init__(self, protocols=[], extensions=[], sfamily=socket.AF_INET,
+            sproto=0):
         """
         Create a regular TCP socket of family `family` and protocol
 
@@ -41,11 +41,11 @@ class websocket(object):
 
         `extensions` is a list of supported extensions.
 
-        `family` and `proto` are used for the regular socket constructor.
+        `sfamily` and `sproto` are used for the regular socket constructor.
         """
         self.protocols = protocols
         self.extensions = extensions
-        self.sock = socket.socket(family, socket.SOCK_STREAM, proto)
+        self.sock = socket.socket(sfamily, socket.SOCK_STREAM, sproto)
 
     def bind(self, address):
         self.sock.bind(address)
@@ -91,7 +91,7 @@ class websocket(object):
         return self.sock.getpeername()
 
     def getsockname(self):
-        return self.sock.getpeername()
+        return self.sock.getsockname()
 
     def setsockopt(self, level, optname, value):
         self.sock.setsockopt(level, optname, value)
