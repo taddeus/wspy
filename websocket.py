@@ -60,7 +60,7 @@ class websocket(object):
         client handshake). Note that the handshake may raise an InvalidRequest
         exception.
         """
-        client, address = socket.socket.accept(self)
+        client, address = self.sock.accept()
         client = websocket(client)
         client.server_handshake()
         return client, address

@@ -98,7 +98,7 @@ class Connection(object):
         """
         while True:
             try:
-                self.onmessage(self, self.receive())
+                self.onmessage(self.receive())
 
                 if self.received_close_params is not None:
                     self.handle_close(*self.received_close_params)
