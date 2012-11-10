@@ -6,7 +6,7 @@ from threading import Thread
 from websocket import websocket
 from connection import Connection
 from frame import CLOSE_NORMAL
-from exceptions import InvalidRequest
+from exceptions import HandshakeError
 
 
 class Server(object):
@@ -36,7 +36,7 @@ class Server(object):
                 thread = Thread(target=client.receive_forever)
                 thread.daemon = True
                 thread.start()
-            except InvalidRequest as e:
+            except HandshakeError as e:
                 logging.error('Invalid request: %s', e.message)
             except KeyboardInterrupt:
                 logging.info('Received interrupt, stopping server...')

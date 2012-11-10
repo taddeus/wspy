@@ -2,7 +2,7 @@ class SocketClosed(Exception):
     pass
 
 
-class InvalidRequest(ValueError):
+class HandshakeError(Exception):
     pass
 
 

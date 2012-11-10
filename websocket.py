@@ -3,7 +3,7 @@ import socket
 from hashlib import sha1
 
 from frame import receive_frame
-from exceptions import InvalidRequest
+from exceptions import HandshakeError
 
 
 WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
@@ -57,7 +57,7 @@ class websocket(object):
         """
         Equivalent to socket.accept(), but transforms the socket into a
         websocket instance and sends a server handshake (after receiving a
-        client handshake). Note that the handshake may raise an InvalidRequest
+        client handshake). Note that the handshake may raise an HandshakeError
         exception.
         """
         client, address = self.sock.accept()
@@ -102,8 +102,8 @@ class websocket(object):
     def server_handshake(self):
         """
         Execute a handshake as the server end point of the socket. If the HTTP
-        request headers sent by the client are invalid, an InvalidRequest
-        exception is raised.
+        request headers sent by the client are invalid, a HandshakeError
+        is raised.
         """
         raw_headers = self.sock.recv(512).decode('utf-8', 'ignore')
 
@@ -119,13 +119,13 @@ class websocket(object):
         for name in ('Host', 'Upgrade', 'Connection', 'Sec-WebSocket-Key',
                      'Origin', 'Sec-WebSocket-Version'):
             if name not in header_names:
-                raise InvalidRequest('missing "%s" header' % name)
+                raise HandshakeError('missing "%s" header' % name)
 
         # Check WebSocket version used by client
         version = header('Sec-WebSocket-Version')
 
         if version != WS_VERSION:
-            raise InvalidRequest('WebSocket version %s requested (only %s '
+            raise HandshakeError('WebSocket version %s requested (only %s '
                                  'is supported)' % (version, WS_VERSION))
 
         # Only supported protocols are returned
@@ -160,5 +160,9 @@ class websocket(object):
         self.sock.send(shake + '\r\n')
 
     def client_handshake(self):
+        """
+        Execute a handshake as the client end point of the socket. May raise a
+        HandshakeError if the server response is invalid.
+        """
         # TODO: implement HTTP request headers for client handshake
         raise NotImplementedError()
