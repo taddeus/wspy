@@ -60,10 +60,10 @@ class websocket(object):
         client handshake). Note that the handshake may raise an HandshakeError
         exception.
         """
-        client, address = self.sock.accept()
-        client = websocket(client)
-        client.server_handshake()
-        return client, address
+        sock, address = self.sock.accept()
+        wsock = websocket(sock)
+        wsock.server_handshake()
+        return wsock, address
 
     def connect(self, address):
         """

@@ -10,6 +10,25 @@ from exceptions import HandshakeError
 
 
 class Server(object):
+    """
+    Websocket server object, used to manage multiple client connections.
+    Example usage:
+
+    >>> import websocket
+
+    >>> class GameServer(websocket.Server):
+    >>>     def onopen(self, client):
+    >>>         # client connected
+
+    >>>     def onclose(self, client):
+    >>>         # client disconnected
+
+    >>>     def onmessage(self, client, message):
+    >>>         # handle message from client
+
+    >>> GameServer(port=8000).run()
+    """
+
     def __init__(self, port, hostname='', loglevel=logging.INFO, protocols=[]):
         logging.basicConfig(level=loglevel,
                 format='%(asctime)s: %(levelname)s: %(message)s',
@@ -55,16 +74,16 @@ class Server(object):
         self.onclose(client, code, reason)
 
     def onopen(self, client):
-        logging.debug('Opened socket to %s' % client)
+        logging.debug('Opened socket to %s', client)
 
     def onmessage(self, client, message):
-        logging.debug('Received %s from %s' % (message, client))
+        logging.debug('Received %s from %s', message, client)
 
     def onping(self, client, payload):
-        logging.debug('Sent ping "%s" to %s' % (payload, client))
+        logging.debug('Sent ping "%s" to %s', payload, client)
 
     def onpong(self, client, payload):
-        logging.debug('Received pong "%s" from %s' % (payload, client))
+        logging.debug('Received pong "%s" from %s', payload, client)
 
     def onclose(self, client, code, reason):
         msg = 'Closed socket to %s' % client

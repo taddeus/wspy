@@ -1,7 +1,9 @@
+import json
+
 from frame import Frame, OPCODE_TEXT, OPCODE_BINARY
 
 
-__all__ = ['Message', 'TextMessage', 'BinaryMessage']
+__all__ = ['Message', 'TextMessage', 'BinaryMessage', 'JSONMessage']
 
 
 class Message(object):
@@ -28,6 +30,14 @@ class TextMessage(Message):
 class BinaryMessage(Message):
     def __init__(self, payload):
         super(BinaryMessage, self).__init__(OPCODE_BINARY, payload)
+
+
+class JSONMessage(TextMessage):
+    def __init__(self, dictionary, **kwargs):
+        self.data = {}
+        self.data.extend(dictionary)
+        self.data.extend(kwargs)
+        super(JSONMessage, self).__init__(json.dumps(self.data))
 
 
 OPCODE_CLASS_MAP = {
