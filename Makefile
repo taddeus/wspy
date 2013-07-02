@@ -1,7 +1,7 @@
-.PHONY: test clean
+.PHONY: check clean
 
-test:
+check:
 	@python test.py
 
 clean:
-	rm `find -name \*.pyc`
+	find -name \*.pyc -delete

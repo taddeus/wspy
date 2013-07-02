@@ -33,21 +33,21 @@ class BinaryMessage(Message):
 
 
 class JSONMessage(TextMessage):
-    def __init__(self, dictionary, **kwargs):
+    def __init__(self, data, **kwargs):
         self.data = {}
-        self.data.extend(dictionary)
-        self.data.extend(kwargs)
+        self.data.update(data, **kwargs)
         super(JSONMessage, self).__init__(json.dumps(self.data))
 
-
-OPCODE_CLASS_MAP = {
-    OPCODE_TEXT: TextMessage,
-    OPCODE_BINARY: BinaryMessage,
-}
+    @classmethod
+    def decode(cls, payload):
+        return cls(json.loads(payload))
 
 
 def create_message(opcode, payload):
-    if opcode in OPCODE_CLASS_MAP:
-        return OPCODE_CLASS_MAP[opcode](payload)
+    if opcode == OPCODE_TEXT:
+        return TextMessage(payload)
+
+    if opcode == OPCODE_BINARY:
+        return BinaryMessage(payload)
 
     return Message(opcode, payload)

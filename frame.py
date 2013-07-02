@@ -127,7 +127,7 @@ class Frame(object):
         """
         frames = []
 
-        for start in range(0, len(self.payload), fragment_size):
+        for start in xrange(0, len(self.payload), fragment_size):
             payload = self.payload[start:start + fragment_size]
             frames.append(Frame(OPCODE_CONTINUATION, payload, mask=mask,
                                 final=False))
@@ -149,7 +149,7 @@ class Frame(object):
 
 class ControlFrame(Frame):
     """
-    A Control frame is a frame with an opcode OPCODE_CLOSE, OPCODE_PING or
+    A control frame is a frame with an opcode OPCODE_CLOSE, OPCODE_PING or
     OPCODE_PONG. These frames must be handled as defined by RFC 6455, and
     """
     def fragment(self, fragment_size, mask=False):

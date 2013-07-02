@@ -1,6 +1,7 @@
 import struct
 
-from frame import ControlFrame, OPCODE_CLOSE, OPCODE_PING, OPCODE_PONG
+from frame import ControlFrame, OPCODE_CLOSE, OPCODE_PING, OPCODE_PONG, \
+                  OPCODE_CONTINUATION
 from message import create_message
 from exceptions import SocketClosed, PingError
 
@@ -43,8 +44,8 @@ class Connection(object):
         """
         Receive a message. A message may consist of multiple (ordered) data
         frames. A control frame may be delivered at any time, also when
-        expecting the next data frame of a fragmented message. These control
-        frames are handled immediately bu handle_control_frame().
+        expecting the next continuation frame of a fragmented message. These
+        control frames are handled immediately by handle_control_frame().
         """
         fragments = []
 
@@ -57,10 +58,13 @@ class Connection(object):
                 # No more receiving data after a close message
                 if frame.opcode == OPCODE_CLOSE:
                     break
+            elif len(fragments) and frame.opcode != OPCODE_CONTINUATION:
+                raise ValueError('expected continuation/control frame, got %s '
+                                 'instead' % frame)
             else:
                 fragments.append(frame)
 
-        payload = ''.join([f.payload for f in fragments])
+        payload = ''.join(f.payload for f in fragments)
         return create_message(fragments[0].opcode, payload)
 
     def handle_control_frame(self, frame):
