@@ -111,7 +111,7 @@ class Connection(object):
                 self.onclose(None, '')
                 break
             except Exception as e:
-                self.onexception(e)
+                self.onerror(e)
 
     def send_close(self, code, reason):
         """
@@ -191,7 +191,7 @@ class Connection(object):
         """
         return NotImplemented
 
-    def onexception(self, e):
+    def onerror(self, e):
         """
         Handle a raised exception.
         """

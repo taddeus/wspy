@@ -26,7 +26,7 @@ class Server(object):
     >>>     def onmessage(self, client, message):
     >>>         # handle message from client
 
-    >>> GameServer(port=8000).run()
+    >>> GameServer(8000).run()
     """
 
     def __init__(self, port, hostname='', loglevel=logging.INFO, protocols=[]):
@@ -96,7 +96,7 @@ class Server(object):
 
         logging.debug(msg)
 
-    def onexception(self, client, e):
+    def onerror(self, client, e):
         logging.error(format_exc(e))
 
 
@@ -120,8 +120,8 @@ class Client(Connection):
     def onclose(self, code, reason):
         self.server.remove_client(self, code, reason)
 
-    def onexception(self, e):
-        self.server.onexception(self, e)
+    def onerror(self, e):
+        self.server.onerror(self, e)
 
     def __str__(self):
         return '<Client at %s:%d>' % self.sock.getpeername()
@@ -129,5 +129,5 @@ class Client(Connection):
 
 if __name__ == '__main__':
     import sys
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 80
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
     Server(port, loglevel=logging.DEBUG).run()

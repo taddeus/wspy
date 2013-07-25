@@ -21,7 +21,7 @@ class websocket(object):
 
     Server example:
     >>> sock = websocket()
-    >>> sock.bind(('', 80))
+    >>> sock.bind(('', 8000))
     >>> sock.listen()
 
     >>> client = sock.accept()
@@ -30,7 +30,7 @@ class websocket(object):
 
     Client example:
     >>> sock = websocket()
-    >>> sock.connect(('kompiler.org', 80))
+    >>> sock.connect(('', 8000))
     """
     def __init__(self, protocols=[], extensions=[], sfamily=socket.AF_INET,
             sproto=0):
@@ -57,7 +57,7 @@ class websocket(object):
         """
         Equivalent to socket.accept(), but transforms the socket into a
         websocket instance and sends a server handshake (after receiving a
-        client handshake). Note that the handshake may raise an HandshakeError
+        client handshake). Note that the handshake may raise a HandshakeError
         exception.
         """
         sock, address = self.sock.accept()
