@@ -23,6 +23,10 @@ CLOSE_MISSING_EXTENSIONS = 1010
 CLOSE_UNABLE = 1011
 
 
+def printstr(s):
+    return ''.join(c if c in printable else '.' for c in s)
+
+
 class Frame(object):
     """
     A Frame instance represents a web socket data frame as defined in RFC 6455.
@@ -143,10 +147,15 @@ class Frame(object):
             % (self.__class__.__name__, self.opcode, len(self.payload))
 
         if self.masking_key:
-            k = ''.join(c if c in printable else '.' for c in self.masking_key)
-            s += ' masking_key=%4s' % k
+            s += ' masking_key=%4s' % printstr(self.masking_key)
 
-        return s + '>'
+        max_pl_disp = 30
+        pl = self.payload[:max_pl_disp]
+
+        if len(self.payload) > max_pl_disp:
+             pl += '...'
+
+        return s + ' payload=%s>' % pl
 
 
 class ControlFrame(Frame):
