@@ -41,7 +41,7 @@ class BinaryMessage(Message):
 
 
 class JSONMessage(TextMessage):
-    def __init__(self, data, **kwargs):
+    def __init__(self, data={}, **kwargs):
         self.data = {}
         self.data.update(data, **kwargs)
         super(JSONMessage, self).__init__(json.dumps(self.data))
