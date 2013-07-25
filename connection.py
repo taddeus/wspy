@@ -104,7 +104,7 @@ class Connection(object):
             try:
                 self.onmessage(self.receive())
             except SocketClosed as e:
-                self.close()
+                self.close(e.code, e.reason)
                 break
             except Exception as e:
                 self.onerror(e)
