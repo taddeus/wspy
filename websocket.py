@@ -3,7 +3,7 @@ import socket
 from hashlib import sha1
 
 from frame import receive_frame
-from exceptions import HandshakeError
+from errors import HandshakeError
 
 
 WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
@@ -11,7 +11,7 @@ WS_VERSION = '13'
 
 
 def split_stripped(value, delim=','):
-    return map(str.strip, value.split(delim))
+    return map(str.strip, str(value).split(delim))
 
 
 class websocket(object):
@@ -32,10 +32,13 @@ class websocket(object):
     >>> sock = websocket()
     >>> sock.connect(('', 8000))
     """
-    def __init__(self, protocols=[], extensions=[], sfamily=socket.AF_INET,
-            sproto=0):
+    def __init__(self, sock=None, protocols=[], extensions=[], sfamily=socket.AF_INET,
+                 sproto=0):
         """
         Create a regular TCP socket of family `family` and protocol
+
+        `sock` is an optional regular TCP socket to be used for sending binary
+        data. If not specified, a new socket is created.
 
         `protocols` is a list of supported protocol names.
 
@@ -45,7 +48,7 @@ class websocket(object):
         """
         self.protocols = protocols
         self.extensions = extensions
-        self.sock = socket.socket(sfamily, socket.SOCK_STREAM, sproto)
+        self.sock = sock or socket.socket(sfamily, socket.SOCK_STREAM, sproto)
 
     def bind(self, address):
         self.sock.bind(address)
@@ -78,14 +81,24 @@ class websocket(object):
         Send a number of frames.
         """
         for frame in args:
+            print 'send frame:', frame, 'to %s:%d' % self.sock.getpeername(), frame.payload
             self.sock.sendall(frame.pack())
 
-    def recv(self, n=1):
+    def recv(self):
+        """
+        Receive a single frames. This can be either a data frame or a control
+        frame.
+        """
+        frame = receive_frame(self.sock)
+        print 'receive frame:', frame, 'from %s:%d' % self.sock.getpeername()
+        return frame
+
+    def recvn(self, n):
         """
         Receive exactly `n` frames. These can be either data frames or control
         frames, or a combination of both.
         """
-        return [receive_frame(self.sock) for i in xrange(n)]
+        return [self.recv() for i in xrange(n)]
 
     def getpeername(self):
         return self.sock.getpeername()

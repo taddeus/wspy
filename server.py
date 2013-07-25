@@ -6,7 +6,7 @@ from threading import Thread
 from websocket import websocket
 from connection import Connection
 from frame import CLOSE_NORMAL
-from exceptions import HandshakeError
+from errors import HandshakeError
 
 
 class Server(object):
@@ -48,9 +48,9 @@ class Server(object):
             try:
                 sock, address = self.sock.accept()
 
-                client = Client(self, sock, address)
+                client = Client(self, sock)
                 self.clients.append(client)
-                logging.info('Registered client %s', client)
+                logging.debug('Registered client %s', client)
 
                 thread = Thread(target=client.receive_forever)
                 thread.daemon = True
@@ -102,8 +102,15 @@ class Server(object):
 
 class Client(Connection):
     def __init__(self, server, sock):
-        super(Client, self).__init__(sock)
         self.server = server
+        super(Client, self).__init__(sock)
+
+    def __str__(self):
+        return '<Client at %s:%d>' % self.sock.getpeername()
+
+    def send(self, message, fragment_size=None, mask=False):
+        logging.debug('Sending %s to %s', message, self)
+        Connection.send(self, message, fragment_size=fragment_size, mask=mask)
 
     def onopen(self):
         self.server.onopen(self)
@@ -122,9 +129,6 @@ class Client(Connection):
 
     def onerror(self, e):
         self.server.onerror(self, e)
-
-    def __str__(self):
-        return '<Client at %s:%d>' % self.sock.getpeername()
 
 
 if __name__ == '__main__':

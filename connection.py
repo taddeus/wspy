@@ -3,7 +3,7 @@ import struct
 from frame import ControlFrame, OPCODE_CLOSE, OPCODE_PING, OPCODE_PONG, \
                   OPCODE_CONTINUATION
 from message import create_message
-from exceptions import SocketClosed, PingError
+from errors import SocketClosed, PingError
 
 
 class Connection(object):
@@ -21,8 +21,8 @@ class Connection(object):
         """
         self.sock = sock
 
-        self.received_close_params = None
         self.close_frame_sent = False
+        self.close_frame_received = False
 
         self.ping_sent = False
         self.ping_payload = None
@@ -54,17 +54,17 @@ class Connection(object):
 
             if isinstance(frame, ControlFrame):
                 self.handle_control_frame(frame)
-
-                # No more receiving data after a close message
-                if frame.opcode == OPCODE_CLOSE:
-                    break
             elif len(fragments) and frame.opcode != OPCODE_CONTINUATION:
                 raise ValueError('expected continuation/control frame, got %s '
                                  'instead' % frame)
             else:
                 fragments.append(frame)
 
-        payload = ''.join(f.payload for f in fragments)
+        payload = bytearray()
+
+        for f in fragments:
+            payload += f.payload
+
         return create_message(fragments[0].opcode, payload)
 
     def handle_control_frame(self, frame):
@@ -72,10 +72,20 @@ class Connection(object):
         Handle a control frame as defined by RFC 6455.
         """
         if frame.opcode == OPCODE_CLOSE:
-            # Set parameters and keep receiving the current fragmented frame
-            # chain, assuming that the CLOSE frame will be handled by
-            # handle_close() as soon as possible
-            self.received_close_params = frame.unpack_close()
+            # Handle a close message by sending a response close message if no
+            # CLOSE frame was sent before, and closing the connection. The
+            # onclose() handler is called afterwards.
+            self.close_frame_received = True
+            code, reason = frame.unpack_close()
+
+            if not self.close_frame_sent:
+                payload = '' if code is None else struct.pack('!H', code)
+                self.sock.send(ControlFrame(OPCODE_CLOSE, payload))
+
+            self.sock.close()
+
+            # No more receiving data after a close message
+            raise SocketClosed(code, reason)
 
         elif frame.opcode == OPCODE_PING:
             # Respond with a pong message with identical payload
@@ -103,12 +113,8 @@ class Connection(object):
         while True:
             try:
                 self.onmessage(self.receive())
-
-                if self.received_close_params is not None:
-                    self.handle_close(*self.received_close_params)
-                    break
-            except SocketClosed:
-                self.onclose(None, '')
+            except SocketClosed as e:
+                self.onclose(e.code, e.reason)
                 break
             except Exception as e:
                 self.onerror(e)
@@ -150,13 +156,23 @@ class Connection(object):
         has been sent, but before the response has been received.
         """
         self.send_close(code, reason)
-        # FIXME: swap the two lines below?
-        self.onclose(code, reason)
-        frame = self.sock.recv()
-        self.sock.close()
 
-        if frame.opcode != OPCODE_CLOSE:
-            raise ValueError('expected CLOSE frame, got %s instead' % frame)
+        if not self.close_frame_received:
+            frame = self.sock.recv()
+
+            if frame.opcode != OPCODE_CLOSE:
+                raise ValueError('expected CLOSE frame, got %s instead' % frame)
+
+            res_code, res_reason = frame.unpack_close()
+
+            # FIXME: check if res_code == code and res_reason == reason?
+
+            # FIXME: alternatively, keep receiving frames in a loop until a
+            # CLOSE frame is received, so that a fragmented chain may arrive
+            # fully first
+
+        self.sock.close()
+        self.onclose(code, reason)
 
     def onopen(self):
         """

@@ -1,7 +1,8 @@
 import struct
 from os import urandom
+from curses.ascii import isprint
 
-from exceptions import SocketClosed
+from errors import SocketClosed
 
 
 OPCODE_CONTINUATION = 0x0
@@ -82,7 +83,7 @@ class Frame(object):
         |                     Payload Data continued ...                |
         +---------------------------------------------------------------+
         """
-        header = struct.pack('!B', (self.fin << 7) | (self.rsv1 << 6) |
+        header = struct.pack('!B', (self.final << 7) | (self.rsv1 << 6) |
                              (self.rsv2 << 5) | (self.rsv3 << 4) | self.opcode)
 
         mask = bool(self.masking_key) << 7
@@ -142,7 +143,8 @@ class Frame(object):
             % (self.__class__.__name__, self.opcode, len(self.payload))
 
         if self.masking_key:
-            s += ' masking_key=%4s' % self.masking_key
+            key = ''.join(c if isprint(c) else '.' for c in self.masking_key)
+            s += ' masking_key=%4s' % key
 
         return s + '>'
 
@@ -197,7 +199,7 @@ def receive_frame(sock):
     rsv3 = bool(b1 & 0x10)
     opcode = b1 & 0x0F
 
-    mask = bool(b2 & 0x80)
+    masked = bool(b2 & 0x80)
     payload_len = b2 & 0x7F
 
     if payload_len == 126:
@@ -205,7 +207,7 @@ def receive_frame(sock):
     elif payload_len == 127:
         payload_len = struct.unpack('!Q', recvn(sock, 8))
 
-    if mask:
+    if masked:
         masking_key = recvn(sock, 4)
         payload = mask(masking_key, recvn(sock, payload_len))
     else:
@@ -229,7 +231,7 @@ def recvn(sock, n):
         received = sock.recv(n - len(data))
 
         if not len(received):
-            raise SocketClosed()
+            raise SocketClosed(None, 'no data read from socket')
 
         data += received
 

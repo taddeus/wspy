@@ -24,7 +24,15 @@ class Message(object):
 
 class TextMessage(Message):
     def __init__(self, payload):
-        super(TextMessage, self).__init__(OPCODE_TEXT, payload.encode('utf-8'))
+        text = str(payload).encode('utf-8')
+        super(TextMessage, self).__init__(OPCODE_TEXT, text)
+
+    def __str__(self):
+        if len(self.payload) > 30:
+            return '<TextMessage "%s"... size=%d>' \
+                    % (self.payload[:30], len(self.payload))
+
+        return '<TextMessage "%s" size=%d>' % (self.payload, len(self.payload))
 
 
 class BinaryMessage(Message):
