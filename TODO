@@ -1,4 +1,6 @@
-- Unit tests
+- (Unit) tests
 - Mutual exclusion in Server/Client (multiple threads sending stuff at the same
   time will go wrong)
 - Extensions
+- Put timeout on wait for client CLOSE confirmation, to be robust against
+  client crashes
