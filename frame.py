@@ -1,6 +1,6 @@
 import struct
 from os import urandom
-from curses.ascii import isprint
+from string import printable
 
 from errors import SocketClosed
 
@@ -143,8 +143,8 @@ class Frame(object):
             % (self.__class__.__name__, self.opcode, len(self.payload))
 
         if self.masking_key:
-            key = ''.join(c if isprint(c) else '.' for c in self.masking_key)
-            s += ' masking_key=%4s' % key
+            k = ''.join(c if c in printable else '.' for c in self.masking_key)
+            s += ' masking_key=%4s' % k
 
         return s + '>'
 
