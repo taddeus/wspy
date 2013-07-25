@@ -20,7 +20,7 @@
             };
 
             ws.onmessage = function(msg) {
-                log('Received "' + msg + '", closing connection');
+                log('Received "' + msg.data + '", closing connection');
                 ws.close();
             };
 
