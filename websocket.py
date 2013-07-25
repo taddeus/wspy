@@ -81,7 +81,6 @@ class websocket(object):
         Send a number of frames.
         """
         for frame in args:
-            print 'send frame:', frame, 'to %s:%d' % self.sock.getpeername(), frame.payload
             self.sock.sendall(frame.pack())
 
     def recv(self):
@@ -90,7 +89,6 @@ class websocket(object):
         frame.
         """
         frame = receive_frame(self.sock)
-        print 'receive frame:', frame, 'from %s:%d' % self.sock.getpeername()
         return frame
 
     def recvn(self, n):
@@ -111,6 +109,9 @@ class websocket(object):
 
     def getsockopt(self, level, optname):
         return self.sock.getsockopt(level, optname)
+
+    def close(self):
+        self.sock.close()
 
     def server_handshake(self):
         """

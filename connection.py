@@ -105,7 +105,6 @@ class Connection(object):
                 self.onmessage(self.receive())
             except SocketClosed as e:
                 self.close()
-                #self.onclose(e.code, e.reason)
                 break
             except Exception as e:
                 self.onerror(e)
@@ -124,7 +123,11 @@ class Connection(object):
         Close the socket by sending a CLOSE frame and waiting for a response
         close message, unless such a message has already been received earlier
         (prior to calling this function, for example). The onclose() handler is
-        called after the response has been received.
+        called after the response has been received, but before the socket is
+        actually closed. This order was chosen to prevent errors in
+        stringification in the onclose() handler. For example,
+        socket.getpeername() raises a Bad file descriptor error then the socket
+        is closed.
         """
         # Send CLOSE frame
         payload = '' if code is None else struct.pack('!H', code) + reason
@@ -145,8 +148,8 @@ class Connection(object):
             # CLOSE frame is received, so that a fragmented chain may arrive
             # fully first
 
-        self.sock.close()
         self.onclose(code, reason)
+        self.sock.close()
 
     def onopen(self):
         """
