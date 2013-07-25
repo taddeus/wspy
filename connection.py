@@ -21,9 +21,7 @@ class Connection(object):
         """
         self.sock = sock
 
-        self.close_frame_sent = False
         self.close_frame_received = False
-
         self.ping_sent = False
         self.ping_payload = None
 
@@ -72,17 +70,9 @@ class Connection(object):
         Handle a control frame as defined by RFC 6455.
         """
         if frame.opcode == OPCODE_CLOSE:
-            # Handle a close message by sending a response close message if no
-            # CLOSE frame was sent before, and closing the connection. The
-            # onclose() handler is called afterwards.
+            # Close the connection from this end as well
             self.close_frame_received = True
             code, reason = frame.unpack_close()
-
-            if not self.close_frame_sent:
-                payload = '' if code is None else struct.pack('!H', code)
-                self.sock.send(ControlFrame(OPCODE_CLOSE, payload))
-
-            self.sock.close()
 
             # No more receiving data after a close message
             raise SocketClosed(code, reason)
@@ -114,18 +104,11 @@ class Connection(object):
             try:
                 self.onmessage(self.receive())
             except SocketClosed as e:
-                self.onclose(e.code, e.reason)
+                self.close()
+                #self.onclose(e.code, e.reason)
                 break
             except Exception as e:
                 self.onerror(e)
-
-    def send_close(self, code, reason):
-        """
-        Send a CLOSE control frame.
-        """
-        payload = '' if code is None else struct.pack('!H', code) + reason
-        self.sock.send(ControlFrame(OPCODE_CLOSE, payload))
-        self.close_frame_sent = True
 
     def send_ping(self, payload=''):
         """
@@ -136,27 +119,18 @@ class Connection(object):
         self.ping_sent = True
         self.onping(payload)
 
-    def handle_close(self, code=None, reason=''):
-        """
-        Handle a close message by sending a response close message if no CLOSE
-        frame was sent before, and closing the connection. The onclose()
-        handler is called afterwards.
-        """
-        if not self.close_frame_sent:
-            payload = '' if code is None else struct.pack('!H', code)
-            self.sock.send(ControlFrame(OPCODE_CLOSE, payload))
-
-        self.sock.close()
-        self.onclose(code, reason)
-
     def close(self, code=None, reason=''):
         """
         Close the socket by sending a CLOSE frame and waiting for a response
-        close message. The onclose() handler is called after the CLOSE frame
-        has been sent, but before the response has been received.
+        close message, unless such a message has already been received earlier
+        (prior to calling this function, for example). The onclose() handler is
+        called after the response has been received.
         """
-        self.send_close(code, reason)
+        # Send CLOSE frame
+        payload = '' if code is None else struct.pack('!H', code) + reason
+        self.sock.send(ControlFrame(OPCODE_CLOSE, payload))
 
+        # Receive CLOSE frame
         if not self.close_frame_received:
             frame = self.sock.recv()
 
