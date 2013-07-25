@@ -55,7 +55,7 @@ class Frame(object):
         if mask:
             masking_key = urandom(4)
 
-        if len(masking_key)  not in (0, 4):
+        if len(masking_key) not in (0, 4):
             raise ValueError('invalid masking key "%s"' % masking_key)
 
         self.final = final
@@ -87,9 +87,9 @@ class Frame(object):
         |                     Payload Data continued ...                |
         +---------------------------------------------------------------+
         """
-        header = struct.pack('!B', (self.final << 7) | (self.rsv1 << 6) |
-                             (self.rsv2 << 5) | (self.rsv3 << 4) | self.opcode)
-
+        header = struct.pack('!B', (self.final << 7) | (self.rsv1 << 6)
+                                   | (self.rsv2 << 5) | (self.rsv3 << 4)
+                                   | (self.opcode & 0xf))
         mask = bool(self.masking_key) << 7
         payload_len = len(self.payload)
 

@@ -1,6 +1,7 @@
 import re
 import socket
 from hashlib import sha1
+from base64 import b64encode
 
 from frame import receive_frame
 from errors import HandshakeError
@@ -81,6 +82,7 @@ class websocket(object):
         Send a number of frames.
         """
         for frame in args:
+            #print 'send frame:', frame, 'to %s:%d' % self.sock.getpeername()
             self.sock.sendall(frame.pack())
 
     def recv(self):
@@ -89,6 +91,7 @@ class websocket(object):
         frame.
         """
         frame = receive_frame(self.sock)
+        #print 'receive frame:', frame, 'from %s:%d' % self.sock.getpeername()
         return frame
 
     def recvn(self, n):
@@ -123,7 +126,7 @@ class websocket(object):
 
         # request must be HTTP (at least 1.1) GET request, find the location
         location = re.search(r'^GET (.*) HTTP/1.1\r\n', raw_headers).group(1)
-        headers = re.findall(r'(.*?): (.*?)\r\n', raw_headers)
+        headers = re.findall(r'(.*?): ?(.*?)\r\n', raw_headers)
         header_names = [name for name, value in headers]
 
         def header(name):
@@ -153,8 +156,8 @@ class websocket(object):
         extensions = [e for e in extensions if e in self.extensions]
 
         # Encode acceptation key using the WebSocket GUID
-        key = header('Sec-WebSocket-Key')
-        accept = sha1(key + WS_GUID).digest().encode('base64')
+        key = header('Sec-WebSocket-Key').strip()
+        accept = b64encode(sha1(key + WS_GUID).digest())
 
         # Construct HTTP response header
         shake = 'HTTP/1.1 101 Web Socket Protocol Handshake\r\n'
@@ -171,7 +174,7 @@ class websocket(object):
         if extensions:
             shake += 'Sec-WebSocket-Extensions: %s\r\n' % ', '.join(extensions)
 
-        self.sock.send(shake + '\r\n')
+        self.sock.sendall(shake + '\r\n')
 
     def client_handshake(self):
         """
