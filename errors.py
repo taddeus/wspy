@@ -14,3 +14,7 @@ class HandshakeError(Exception):
 
 class PingError(Exception):
     pass
+
+
+class SSLError(Exception):
+    pass

@@ -11,4 +11,6 @@ class EchoServer(Server):
 
 
 if __name__ == '__main__':
-    EchoServer(8000, 'localhost', loglevel=logging.DEBUG).run()
+    EchoServer(8000, 'localhost',
+               #secure=True, keyfile='cert.pem', certfile='cert.pem',
+               loglevel=logging.DEBUG).run()

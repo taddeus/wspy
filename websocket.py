@@ -1,10 +1,11 @@
 import re
 import socket
+import ssl
 from hashlib import sha1
 from base64 import b64encode
 
 from frame import receive_frame
-from errors import HandshakeError
+from errors import HandshakeError, SSLError
 
 
 WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
@@ -19,19 +20,25 @@ class websocket(object):
     """
     Implementation of web socket, upgrades a regular TCP socket to a websocket
     using the HTTP handshakes and frame (un)packing, as specified by RFC 6455.
+    The API of a websocket is identical to that of a regular socket, as
+    illustrated by the examples below.
 
     Server example:
-    >>> sock = websocket()
+    >>> import twspy, socket
+    >>> sock = twspy.websocket()
+    >>> sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     >>> sock.bind(('', 8000))
     >>> sock.listen()
 
     >>> client = sock.accept()
-    >>> client.send(Frame(...))
+    >>> client.send(twspy.Frame(twspy.OPCODE_TEXT, 'Hello, Client!'))
     >>> frame = client.recv()
 
     Client example:
-    >>> sock = websocket()
+    >>> import twspy
+    >>> sock = twspy.websocket()
     >>> sock.connect(('', 8000))
+    >>> sock.send(twspy.Frame(twspy.OPCODE_TEXT, 'Hello, Server!'))
     """
     def __init__(self, sock=None, protocols=[], extensions=[], sfamily=socket.AF_INET,
                  sproto=0):
@@ -50,6 +57,8 @@ class websocket(object):
         self.protocols = protocols
         self.extensions = extensions
         self.sock = sock or socket.socket(sfamily, socket.SOCK_STREAM, sproto)
+        self.secure = False
+        self.handshake_started = False
 
     def bind(self, address):
         self.sock.bind(address)
@@ -122,9 +131,13 @@ class websocket(object):
         request headers sent by the client are invalid, a HandshakeError
         is raised.
         """
-        raw_headers = self.sock.recv(512).decode('utf-8', 'ignore')
+        # Receive HTTP header
+        raw_headers = ''
 
-        # request must be HTTP (at least 1.1) GET request, find the location
+        while raw_headers[-4:] not in ('\r\n\r\n', '\n\n'):
+            raw_headers += self.sock.recv(512).decode('utf-8', 'ignore')
+
+        # Request must be HTTP (at least 1.1) GET request, find the location
         location = re.search(r'^GET (.*) HTTP/1.1\r\n', raw_headers).group(1)
         headers = re.findall(r'(.*?): ?(.*?)\r\n', raw_headers)
         header_names = [name for name, value in headers]
@@ -175,6 +188,7 @@ class websocket(object):
             shake += 'Sec-WebSocket-Extensions: %s\r\n' % ', '.join(extensions)
 
         self.sock.sendall(shake + '\r\n')
+        self.handshake_started = True
 
     def client_handshake(self):
         """
@@ -182,4 +196,17 @@ class websocket(object):
         HandshakeError if the server response is invalid.
         """
         # TODO: implement HTTP request headers for client handshake
-        raise NotImplementedError()
+        self.handshake_started = True
+        raise NotImplementedError
+
+    def enable_ssl(self, *args, **kwargs):
+        """
+        Transform the regular socket.socket to an ssl.SSLSocket for secure
+        connections. Any arguments are passed to ssl.wrap_socket:
+        http://docs.python.org/dev/library/ssl.html#ssl.wrap_socket
+        """
+        if self.handshake_started:
+            raise SSLError('can only enable SSL before handshake')
+
+        self.secure = True
+        self.sock = ssl.wrap_socket(self.sock, *args, **kwargs)

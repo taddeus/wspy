@@ -2,6 +2,7 @@ import socket
 import logging
 from traceback import format_exc
 from threading import Thread
+from ssl import SSLError
 
 from websocket import websocket
 from connection import Connection
@@ -11,12 +12,12 @@ from errors import HandshakeError
 
 class Server(object):
     """
-    Websocket server object, used to manage multiple client connections.
+    Websocket server, manages multiple client connections.
+
     Example usage:
+    >>> import twspy
 
-    >>> import websocket
-
-    >>> class GameServer(websocket.Server):
+    >>> class GameServer(twspy.Server):
     >>>     def onopen(self, client):
     >>>         # client connected
 
@@ -29,14 +30,38 @@ class Server(object):
     >>> GameServer(8000).run()
     """
 
-    def __init__(self, port, hostname='', loglevel=logging.INFO, protocols=[]):
+    def __init__(self, port, hostname='', loglevel=logging.INFO, protocols=[],
+                 secure=False, **kwargs):
+        """
+        Constructor for a simple websocket server.
+
+        `hostname` and `port` form the address to bind the websocket to.
+
+        `loglevel` values should be imported from the logging module.
+        logging.INFO only shows server start/stop messages, logging.DEBUG shows
+        clients (dis)connecting and messages being sent/received.
+
+        `protocols` is a list of supported protocols, passed directly to the
+        websocket constructor.
+
+        `secure` is a flag indicating whether the server is SSL enabled. In
+        this case, `keyfile` and `certfile` must be specified. Any additional
+        keyword arguments are passed to websocket.enable_ssl (and thus to
+        ssl.wrap_socket).
+        """
         logging.basicConfig(level=loglevel,
                 format='%(asctime)s: %(levelname)s: %(message)s',
                 datefmt='%H:%M:%S')
 
+        scheme = 'wss' if secure else 'ws'
+        logging.info('Starting server at %s://%s:%d', scheme, hostname, port)
+
         self.sock = websocket()
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        logging.info('Starting server at %s:%d', hostname, port)
+
+        if secure:
+            self.sock.enable_ssl(server_side=True, **kwargs)
+
         self.sock.bind((hostname, port))
         self.sock.listen(5)
 
@@ -55,6 +80,8 @@ class Server(object):
                 thread = Thread(target=client.receive_forever)
                 thread.daemon = True
                 thread.start()
+            except SSLError as e:
+                logging.error('SSL error: %s', e)
             except HandshakeError as e:
                 logging.error('Invalid request: %s', e.message)
             except KeyboardInterrupt:

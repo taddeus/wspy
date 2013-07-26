@@ -10,9 +10,9 @@
                 document.getElementById('log').innerHTML += line + '\n';
             }
 
-            var URL = 'localhost:8000';
+            var URL = 'ws://localhost:8000';
             log('Connecting to ' + URL);
-            var ws = new WebSocket('ws://' + URL);
+            var ws = new WebSocket(URL);
 
             ws.onopen = function() {
                 log('Connection complete, sending "foo"');
