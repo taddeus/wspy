@@ -1,5 +1,10 @@
 #!/usr/bin/env python
+import sys
 import logging
+from os.path import abspath, dirname
+
+basepath = abspath(dirname(abspath(__file__)) + '/..')
+sys.path.insert(0, basepath)
 
 from server import Server
 

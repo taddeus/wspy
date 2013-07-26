@@ -1,4 +1,5 @@
 import struct
+import socket
 
 from frame import ControlFrame, OPCODE_CLOSE, OPCODE_PING, OPCODE_PONG, \
                   OPCODE_CONTINUATION
@@ -106,6 +107,16 @@ class Connection(object):
             except SocketClosed as e:
                 self.close(e.code, e.reason)
                 break
+            except socket.error as e:
+                self.onerror(e)
+
+                try:
+                    self.sock.close()
+                except socket.error:
+                    pass
+
+                self.onclose(None, '')
+                break
             except Exception as e:
                 self.onerror(e)
 
@@ -124,10 +135,7 @@ class Connection(object):
         close message, unless such a message has already been received earlier
         (prior to calling this function, for example). The onclose() handler is
         called after the response has been received, but before the socket is
-        actually closed. This order was chosen to prevent errors in
-        stringification in the onclose() handler. For example,
-        socket.getpeername() raises a Bad file descriptor error then the socket
-        is closed.
+        actually closed.
         """
         # Send CLOSE frame
         payload = '' if code is None else struct.pack('!H', code) + reason

@@ -15,7 +15,7 @@
             var ws = new WebSocket(URL);
 
             ws.onopen = function() {
-                log('Connection complete, sending "foo"');
+                log('Connection established, sending "foo"');
                 ws.send('foo');
             };
 

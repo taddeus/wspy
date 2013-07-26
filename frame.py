@@ -1,4 +1,5 @@
 import struct
+import socket
 from os import urandom
 from string import printable
 
@@ -150,7 +151,7 @@ class Frame(object):
             s += ' masking_key=%4s' % printstr(self.masking_key)
 
         max_pl_disp = 30
-        pl = self.payload[:max_pl_disp]
+        pl = printstr(self.payload)[:max_pl_disp]
 
         if len(self.payload) > max_pl_disp:
              pl += '...'
@@ -240,7 +241,7 @@ def recvn(sock, n):
         received = sock.recv(n - len(data))
 
         if not len(received):
-            raise SocketClosed(None, 'no data read from socket')
+            raise socket.error('no data read from socket')
 
         data += received
 

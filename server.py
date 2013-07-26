@@ -133,7 +133,10 @@ class Client(Connection):
         super(Client, self).__init__(sock)
 
     def __str__(self):
-        return '<Client at %s:%d>' % self.sock.getpeername()
+        try:
+            return '<Client at %s:%d>' % self.sock.getpeername()
+        except socket.error:
+            return '<Client on closed socket>'
 
     def send(self, message, fragment_size=None, mask=False):
         logging.debug('Sending %s to %s', message, self)
