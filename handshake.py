@@ -89,12 +89,12 @@ class ServerHandshake(Handshake):
 
     def perform(self):
         # Receive and validate client handshake
-        location, headers = self.receive_request()
+        self.wsock.location, headers = self.receive_request()
 
         # Send server handshake in response
-        self.send_headers(self.response_headers(location, headers))
+        self.send_headers(self.response_headers(headers))
 
-    def response_headers(self, location, headers):
+    def response_headers(self, headers):
         # Check if headers that MUST be present are actually present
         for name in ('Host', 'Upgrade', 'Connection', 'Sec-WebSocket-Key',
                      'Sec-WebSocket-Version'):
@@ -117,14 +117,14 @@ class ServerHandshake(Handshake):
 
         # Origin must be present if browser client, and must match the list of
         # trusted origins
+        origin = 'null'
+
         if 'Origin' not in headers:
             if 'User-Agent' in headers:
                 self.fail('browser client must specify "Origin" header')
 
             if self.wsock.trusted_origins:
                 self.fail('no "Origin" header specified, assuming untrusted')
-
-            origin = 'null'
         elif self.wsock.trusted_origins:
             origin = headers['Origin']
 
@@ -164,12 +164,14 @@ class ServerHandshake(Handshake):
             if port != default_port:
                 host += ':%d' % port
 
+        location = '%s://%s%s' % (scheme, host, self.wsock.location)
+
         # Construct HTTP response header
         yield 'HTTP/1.1 101 Web Socket Protocol Handshake'
         yield 'Upgrade', 'websocket'
         yield 'Connection', 'Upgrade'
         yield 'WebSocket-Origin', origin
-        yield 'WebSocket-Location', '%s://%s%s' % (scheme, host, location)
+        yield 'WebSocket-Location', location
         yield 'Sec-WebSocket-Accept', accept
         yield 'Sec-WebSocket-Protocol', protocol
         yield 'Sec-WebSocket-Extensions', ', '.join(extensions)
