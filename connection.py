@@ -39,7 +39,7 @@ class Connection(object):
         else:
             self.sock.send(*message.fragment(fragment_size, mask=mask))
 
-    def receive(self):
+    def recv(self):
         """
         Receive a message. A message may consist of multiple (ordered) data
         frames. A control frame may be delivered at any time, also when
@@ -103,7 +103,7 @@ class Connection(object):
         """
         while True:
             try:
-                self.onmessage(self.receive())
+                self.onmessage(self.recv())
             except SocketClosed as e:
                 self.close(e.code, e.reason)
                 break

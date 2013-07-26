@@ -237,7 +237,6 @@ class ClientHandshake(Handshake):
 
             self.wsock.protocol = protocol
 
-
     def handle_auth(self, headers):
         # HTTP authentication is required in the request
         hdr = headers['WWW-Authenticate']
