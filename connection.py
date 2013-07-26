@@ -146,7 +146,7 @@ class Connection(object):
             frame = self.sock.recv()
 
             if frame.opcode != OPCODE_CLOSE:
-                raise ValueError('expected CLOSE frame, got %s instead' % frame)
+                raise ValueError('expected CLOSE frame, got %s' % frame)
 
             res_code, res_reason = frame.unpack_close()
 

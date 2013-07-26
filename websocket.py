@@ -42,8 +42,8 @@ class websocket(object):
     >>> sock.connect(('', 8000))
     >>> sock.send(twspy.Frame(twspy.OPCODE_TEXT, 'Hello, Server!'))
     """
-    def __init__(self, sock=None, protocols=[], extensions=[], sfamily=socket.AF_INET,
-                 sproto=0):
+    def __init__(self, sock=None, protocols=[], extensions=[],
+                 sfamily=socket.AF_INET, sproto=0):
         """
         Create a regular TCP socket of family `family` and protocol
 
@@ -251,10 +251,12 @@ class websocket(object):
             # Request protocols and extension, these are later checked with the
             # actual supported values from the server's response
             if self.protocols:
-                shake += 'Sec-WebSocket-Protocol: %s\r\n' % ', '.join(self.protocols)
+                shake += 'Sec-WebSocket-Protocol: %s\r\n' \
+                         % ', '.join(self.protocols)
 
             if self.extensions:
-                shake += 'Sec-WebSocket-Extensions: %s\r\n' % ', '.join(self.extensions)
+                shake += 'Sec-WebSocket-Extensions: %s\r\n' \
+                         % ', '.join(self.extensions)
 
             if auth:
                 shake += 'Authorization: %s\r\n' % auth
@@ -350,7 +352,6 @@ class websocket(object):
 
         self.handshake_started = True
         receive_response(send_request(location))
-
 
     def enable_ssl(self, *args, **kwargs):
         """

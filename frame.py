@@ -3,8 +3,6 @@ import socket
 from os import urandom
 from string import printable
 
-from errors import SocketClosed
-
 
 OPCODE_CONTINUATION = 0x0
 OPCODE_TEXT = 0x1
@@ -154,7 +152,7 @@ class Frame(object):
         pl = printstr(self.payload)[:max_pl_disp]
 
         if len(self.payload) > max_pl_disp:
-             pl += '...'
+            pl += '...'
 
         return s + ' payload=%s>' % pl
 
@@ -176,7 +174,7 @@ class ControlFrame(Frame):
         125 bytes.
         """
         if len(self.payload) > 125:
-            raise ValueError('control frames must not be larger than 125' \
+            raise ValueError('control frames must not be larger than 125 '
                              'bytes')
 
         return Frame.pack(self)
