@@ -134,7 +134,7 @@ class ServerHandshake(Handshake):
         # Only a supported protocol can be returned
         client_proto = split_stripped(headers['Sec-WebSocket-Protocol']) \
                        if 'Sec-WebSocket-Protocol' in headers else []
-        protocol = 'null'
+        protocol = None
 
         for p in client_proto:
             if p in self.wsock.proto:
@@ -173,8 +173,12 @@ class ServerHandshake(Handshake):
         yield 'WebSocket-Origin', origin
         yield 'WebSocket-Location', location
         yield 'Sec-WebSocket-Accept', accept
-        yield 'Sec-WebSocket-Protocol', protocol
-        yield 'Sec-WebSocket-Extensions', ', '.join(extensions)
+
+        if protocol:
+            yield 'Sec-WebSocket-Protocol', protocol
+
+        if extensions:
+            yield 'Sec-WebSocket-Extensions', ', '.join(extensions)
 
 
 class ClientHandshake(Handshake):
