@@ -185,7 +185,7 @@ class ControlFrame(Frame):
         is given, the code is None and the reason is an empty string.
         """
         if self.payload:
-            code = struct.unpack('!H', str(self.payload[:2]))
+            code = struct.unpack('!H', str(self.payload[:2]))[0]
             reason = str(self.payload[2:])
         else:
             code = None
