@@ -93,3 +93,23 @@ def filter_extensions(extensions):
         compat.append(ext)
 
     return compat
+
+
+"""
+Class map used to find contructors for client-specified extensions. Not to be
+modified manually, only through `register_extension`.
+"""
+extension_class_map = {}
+
+
+def register_extension(ext):
+    if not isinstance(ext, Extension):
+        raise ValueError('extensions should extend the `Extension` class')
+
+    if ext.name in extension_clas_map:
+        raise KeyError('extension "%s" has already been registered' % ext.name)
+
+    extension_class_map[ext.name] = ext
+
+
+register_extension(DeflateFrame)
