@@ -8,3 +8,4 @@ from frame import Frame, ControlFrame, OPCODE_CONTINUATION, OPCODE_TEXT, \
 from connection import Connection
 from message import Message, TextMessage, BinaryMessage
 from errors import SocketClosed
+from extension import Extension, DeflateFrame

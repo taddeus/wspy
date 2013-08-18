@@ -21,6 +21,9 @@ class Extension(object):
 
             setattr(self, param, value)
 
+    def client_params(self, frame):
+        return {}
+
     def hook_send(self, frame):
         return frame
 
@@ -28,12 +31,13 @@ class Extension(object):
         return frame
 
 
-class Deflate(Extension):
+class DeflateFrame(Extension):
+    name = 'deflate-frame'
     rsv1 = True
     parameters = ['max_window_bits', 'no_context_takeover']
 
     def __init__(self, **kwargs):
-        super(Deflate, self).__init__(**kwargs)
+        super(DeflateFrame, self).__init__(**kwargs)
         self.max_window_bits = int(self.max_window_bits)
 
     def hook_send(self, frame):
@@ -54,6 +58,9 @@ class Deflate(Extension):
 
         return frame
 
+    def client_params(self):
+        raise NotImplementedError  # TODO
+
     def encode(self, data):
         raise NotImplementedError  # TODO
 
@@ -61,7 +68,7 @@ class Deflate(Extension):
         raise NotImplementedError  # TODO
 
 
-def filter_compatible(extensions):
+def filter_extensions(extensions):
     """
     Remove extensions that use conflicting rsv bits and/or opcodes, with the
     first options being most preferable.

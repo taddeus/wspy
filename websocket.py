@@ -41,7 +41,7 @@ class websocket(object):
 
         `protocols` is a list of supported protocol names.
 
-        `extensions` is a list of supported extensions.
+        `extensions` is a list of supported extension classes.
 
         `origin` (for client sockets) is the value for the "Origin" header sent
         in a client handshake .
