@@ -101,14 +101,32 @@ class Server(object):
         self.quit_gracefully()
 
     def quit_gracefully(self):
+        # Send a CLOSE frame so that the client connection will receive a
+        # response CLOSE frame
         for client in self.clients:
             client.send_close_frame()
 
+        # Wait for the CLOSE frames to be received. Wait for all threads in one
+        # loop instead of joining separately, so that timeouts are not
+        # propagated
         start_time = time.time()
 
         while time.time() - start_time <= self.max_join_time \
                 and any(t.is_alive() for t in self.client_threads):
             time.sleep(0.050)
+
+        # Close remaining sockets, this will trigger a socket.error in the
+        # receive_forever() thread, causing the Connection.onclose() handler to
+        # be invoked
+        for client in self.clients:
+            try:
+                client.sock.close()
+            except socket.error:
+                pass
+
+        # Wait for the onclose() handlers to finish
+        for thread in self.client_threads:
+            thread.join()
 
     def remove_client(self, client, code, reason):
         self.clients.remove(client)
