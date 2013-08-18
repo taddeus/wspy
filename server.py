@@ -1,5 +1,6 @@
 import socket
 import logging
+import time
 from traceback import format_exc
 from threading import Thread
 from ssl import SSLError
@@ -31,7 +32,7 @@ class Server(object):
     """
 
     def __init__(self, port, hostname='', loglevel=logging.INFO, protocols=[],
-                 secure=False, **kwargs):
+                 secure=False, max_join_time=2.0, **kwargs):
         """
         Constructor for a simple websocket server.
 
@@ -48,6 +49,9 @@ class Server(object):
         this case, `keyfile` and `certfile` must be specified. Any additional
         keyword arguments are passed to websocket.enable_ssl (and thus to
         ssl.wrap_socket).
+
+        `max_join_time` is the maximum time (in seconds) to wait for client
+        responses after sending CLOSE frames, it defaults to 2 seconds.
         """
         logging.basicConfig(level=loglevel,
                 format='%(asctime)s: %(levelname)s: %(message)s',
@@ -66,7 +70,10 @@ class Server(object):
         self.sock.listen(5)
 
         self.clients = []
+        self.client_threads = []
         self.protocols = protocols
+
+        self.max_join_time = max_join_time
 
     def run(self):
         while True:
@@ -80,6 +87,7 @@ class Server(object):
                 thread = Thread(target=client.receive_forever)
                 thread.daemon = True
                 thread.start()
+                self.client_threads.append(thread)
             except SSLError as e:
                 logging.error('SSL error: %s', e)
             except HandshakeError as e:
@@ -94,7 +102,13 @@ class Server(object):
 
     def quit_gracefully(self):
         for client in self.clients:
-            client.close(CLOSE_NORMAL)
+            client.send_close_frame()
+
+        start_time = time.time()
+
+        while time.time() - start_time <= self.max_join_time \
+                and any(t.is_alive() for t in self.client_threads):
+            time.sleep(0.050)
 
     def remove_client(self, client, code, reason):
         self.clients.remove(client)

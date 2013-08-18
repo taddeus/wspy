@@ -22,6 +22,7 @@ class Connection(object):
         """
         self.sock = sock
 
+        self.close_frame_sent = False
         self.close_frame_received = False
         self.ping_sent = False
         self.ping_payload = None
@@ -129,6 +130,14 @@ class Connection(object):
         self.ping_sent = True
         self.onping(payload)
 
+    def send_close_frame(self, code=None, reason=''):
+        """
+        Send a CLOSE control frame.
+        """
+        payload = '' if code is None else struct.pack('!H', code) + reason
+        self.sock.send(ControlFrame(OPCODE_CLOSE, payload))
+        self.close_frame_sent = True
+
     def close(self, code=None, reason=''):
         """
         Close the socket by sending a CLOSE frame and waiting for a response
@@ -138,8 +147,8 @@ class Connection(object):
         actually closed.
         """
         # Send CLOSE frame
-        payload = '' if code is None else struct.pack('!H', code) + reason
-        self.sock.send(ControlFrame(OPCODE_CLOSE, payload))
+        if not self.close_frame_sent:
+            self.send_close_frame(code, reason)
 
         # Receive CLOSE frame
         if not self.close_frame_received:
@@ -148,6 +157,7 @@ class Connection(object):
             if frame.opcode != OPCODE_CLOSE:
                 raise ValueError('expected CLOSE frame, got %s' % frame)
 
+            self.close_frame_received = True
             res_code, res_reason = frame.unpack_close()
 
             # FIXME: check if res_code == code and res_reason == reason?
