@@ -40,17 +40,6 @@ class BinaryMessage(Message):
         super(BinaryMessage, self).__init__(OPCODE_BINARY, payload)
 
 
-class JSONMessage(TextMessage):
-    def __init__(self, data={}, **kwargs):
-        self.data = {}
-        self.data.update(data, **kwargs)
-        super(JSONMessage, self).__init__(json.dumps(self.data))
-
-    @classmethod
-    def decode(cls, payload):
-        return cls(json.loads(payload))
-
-
 def create_message(opcode, payload):
     if opcode == OPCODE_TEXT:
         return TextMessage(payload)
