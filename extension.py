@@ -2,6 +2,7 @@ from errors import HandshakeError
 
 
 class Extension(object):
+    name = ''
     rsv1 = False
     rsv2 = False
     rsv3 = False
@@ -21,7 +22,16 @@ class Extension(object):
 
             setattr(self, param, value)
 
-    def client_params(self, frame):
+    def __str__(self, frame):
+        if len(self.parameters):
+            params = ' ' + ', '.join(p + '=' + str(getattr(self, p))
+                                     for p in self.parameters)
+        else:
+            params = ''
+
+        return '<Extension "%s"%s>' % (self.name, params)
+
+    def header_params(self, frame):
         return {}
 
     def hook_send(self, frame):
@@ -38,7 +48,10 @@ class DeflateFrame(Extension):
 
     def __init__(self, **kwargs):
         super(DeflateFrame, self).__init__(**kwargs)
-        self.max_window_bits = int(self.max_window_bits)
+
+        if self.max_window_bits is None:
+            # FIXME: is this correct? None may actually be a better value
+            self.max_window_bits = 0
 
     def hook_send(self, frame):
         # FIXME: original `frame` is modified, maybe it should be copied?
@@ -58,7 +71,7 @@ class DeflateFrame(Extension):
 
         return frame
 
-    def client_params(self):
+    def header_params(self):
         raise NotImplementedError  # TODO
 
     def encode(self, data):
@@ -71,7 +84,7 @@ class DeflateFrame(Extension):
 def filter_extensions(extensions):
     """
     Remove extensions that use conflicting rsv bits and/or opcodes, with the
-    first options being most preferable.
+    first options being the most preferable.
     """
     rsv1_reserved = True
     rsv2_reserved = True
@@ -93,23 +106,3 @@ def filter_extensions(extensions):
         compat.append(ext)
 
     return compat
-
-
-"""
-Class map used to find contructors for client-specified extensions. Not to be
-modified manually, only through `register_extension`.
-"""
-extension_class_map = {}
-
-
-def register_extension(ext):
-    if not isinstance(ext, Extension):
-        raise ValueError('extensions should extend the `Extension` class')
-
-    if ext.name in extension_clas_map:
-        raise KeyError('extension "%s" has already been registered' % ext.name)
-
-    extension_class_map[ext.name] = ext
-
-
-register_extension(DeflateFrame)

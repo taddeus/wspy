@@ -104,6 +104,9 @@ class websocket(object):
         Send a number of frames.
         """
         for frame in args:
+            for ext in self.extensions:
+                frame = ext.hook_send(frame)
+
             #print 'send frame:', frame, 'to %s:%d' % self.sock.getpeername()
             self.sock.sendall(frame.pack())
 
@@ -113,6 +116,10 @@ class websocket(object):
         frame.
         """
         frame = receive_frame(self.sock)
+
+        for ext in reversed(self.extensions):
+            frame = ext.hook_recv(frame)
+
         #print 'receive frame:', frame, 'from %s:%d' % self.sock.getpeername()
         return frame
 
