@@ -1,5 +1,3 @@
-import json
-
 from frame import Frame, OPCODE_TEXT, OPCODE_BINARY
 
 
