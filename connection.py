@@ -9,12 +9,34 @@ from errors import SocketClosed, PingError
 
 class Connection(object):
     """
-    A Connection uses a websocket instance to send and receive (optionally
-    fragmented) messages, which are Message instances. Control frames are
+    A `Connection` uses a `websocket` instance to send and receive (optionally
+    fragmented) messages, which are `Message` instances. Control frames are
     handled automatically in the way specified by RFC 6455.
 
-    To use the Connection class, it should be extended and the extending class
-    should implement the on*() event handlers.
+    To use the `Connection` class, it should be extended and the extending
+    class should implement the on*() event handlers.
+
+    Example of an echo server (sends back what it receives):
+    >>> import twspy
+
+    >>> class EchoConnection(twspy.Connection):
+    >>>     def onopen(self):
+    >>>         print 'Connection opened at %s:%d' % self.sock.getpeername()
+
+    >>>     def onmessage(self, message):
+    >>>         print 'Received message "%s"' % message.payload
+    >>>         self.send(twspy.TextMessage(message.payload))
+
+    >>>     def onclose(self, message):
+    >>>         print 'Connection closed'
+
+    >>> server = twspy.websocket()
+    >>> server.bind(('', 8000))
+    >>> server.listen()
+
+    >>> while True:
+    >>>     client, addr = server.accept()
+    >>>     EchoConnection(client).receive_forever()
     """
     def __init__(self, sock):
         """

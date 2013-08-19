@@ -18,17 +18,18 @@ class Server(object):
     Example usage:
     >>> import twspy
 
-    >>> class GameServer(twspy.Server):
+    >>> class EchoServer(twspy.Server):
     >>>     def onopen(self, client):
-    >>>         # client connected
-
-    >>>     def onclose(self, client):
-    >>>         # client disconnected
+    >>>         print 'Client %s connected' % client
 
     >>>     def onmessage(self, client, message):
-    >>>         # handle message from client
+    >>>         print 'Received message "%s"' % message.payload
+    >>>         client.send(twspy.TextMessage(message.payload))
 
-    >>> GameServer(8000).run()
+    >>>     def onclose(self, client):
+    >>>         print 'Client %s disconnected' % client
+
+    >>> EchoServer(8000).run()
     """
 
     def __init__(self, port, hostname='', loglevel=logging.INFO, protocols=[],
