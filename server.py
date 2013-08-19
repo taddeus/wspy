@@ -29,15 +29,15 @@ class Server(object):
     >>>     def onclose(self, client):
     >>>         print 'Client %s disconnected' % client
 
-    >>> EchoServer(8000).run()
+    >>> EchoServer(('', 8000)).run()
     """
 
-    def __init__(self, port, hostname='', loglevel=logging.INFO, protocols=[],
+    def __init__(self, address, loglevel=logging.INFO, protocols=[],
                  secure=False, max_join_time=2.0, **kwargs):
         """
-        Constructor for a simple websocket server.
+        Constructor for a simple web socket server.
 
-        `hostname` and `port` form the address to bind the websocket to.
+        `address` is a (hostname, port) tuple to bind the web socket to.
 
         `loglevel` values should be imported from the logging module.
         logging.INFO only shows server start/stop messages, logging.DEBUG shows
@@ -48,8 +48,8 @@ class Server(object):
 
         `secure` is a flag indicating whether the server is SSL enabled. In
         this case, `keyfile` and `certfile` must be specified. Any additional
-        keyword arguments are passed to websocket.enable_ssl (and thus to
-        ssl.wrap_socket).
+        keyword arguments are passed to `websocket.enable_ssl` (and thus to
+        `ssl.wrap_socket`).
 
         `max_join_time` is the maximum time (in seconds) to wait for client
         responses after sending CLOSE frames, it defaults to 2 seconds.
@@ -59,6 +59,7 @@ class Server(object):
                 datefmt='%H:%M:%S')
 
         scheme = 'wss' if secure else 'ws'
+        hostname, port = address
         logging.info('Starting server at %s://%s:%d', scheme, hostname, port)
 
         self.sock = websocket()
@@ -67,7 +68,7 @@ class Server(object):
         if secure:
             self.sock.enable_ssl(server_side=True, **kwargs)
 
-        self.sock.bind((hostname, port))
+        self.sock.bind(address)
         self.sock.listen(5)
 
         self.clients = []
@@ -197,4 +198,4 @@ class Client(Connection):
 if __name__ == '__main__':
     import sys
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
-    Server(port, loglevel=logging.DEBUG).run()
+    Server(('', port), loglevel=logging.DEBUG).run()

@@ -124,7 +124,7 @@ Basic usage
             def onclose(self, client):
                 print 'Client %s disconnected' % client
 
-        EchoServer(8000).run()
+        EchoServer(('', 8000)).run()
 
   The server can be stopped by typing CTRL-C in the command line. The
   `KeyboardInterrupt` raised when this happens is caught by the server.
