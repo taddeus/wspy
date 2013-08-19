@@ -3,7 +3,7 @@ import json
 from frame import Frame, OPCODE_TEXT, OPCODE_BINARY
 
 
-__all__ = ['Message', 'TextMessage', 'BinaryMessage', 'JSONMessage']
+__all__ = ['Message', 'TextMessage', 'BinaryMessage']
 
 
 class Message(object):
