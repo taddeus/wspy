@@ -23,6 +23,12 @@ class Extension(object):
         return '<Extension "%s" defaults=%s request=%s>' \
                % (self.name, self.defaults, self.request)
 
+    def create_hook(self, **kwargs):
+        params = {}
+        params.update(self.defaults)
+        params.update(kwargs)
+        return self.Hook(**params)
+
     class Hook:
         def __init__(self, **kwargs):
             for param, value in kwargs.iteritems():

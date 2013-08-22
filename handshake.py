@@ -154,7 +154,7 @@ class ServerHandshake(Handshake):
             self.wsock.extensions = filter_extensions(extensions)
 
             for ext, params in zip(self.wsock.extensions, all_params):
-                hook = ext.Hook(**params)
+                hook = ext.create_hook(**params)
                 self.wsock.add_hook(send=hook.send, recv=hook.recv)
         else:
             self.wsock.extensions = []
@@ -249,7 +249,7 @@ class ClientHandshake(Handshake):
                     raise HandshakeError('server handshake contains '
                                          'unsupported extension "%s"' % name)
 
-                hook = supported_ext[name].Hook(**params)
+                hook = supported_ext[name].create_hook(**params)
                 self.wsock.extensions.append(supported_ext[name])
                 self.wsock.add_hook(send=hook.send, recv=hook.recv)
 
