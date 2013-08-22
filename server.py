@@ -58,7 +58,7 @@ class Server(object):
                 format='%(asctime)s: %(levelname)s: %(message)s',
                 datefmt='%H:%M:%S')
 
-        scheme = 'wss' if secure else 'ws'
+        scheme = 'wss' if ssl_args else 'ws'
         hostname, port = address
         logging.info('Starting server at %s://%s:%d', scheme, hostname, port)
 
@@ -73,7 +73,6 @@ class Server(object):
 
         self.clients = []
         self.client_threads = []
-        self.protocols = protocols
 
         self.max_join_time = max_join_time
 
