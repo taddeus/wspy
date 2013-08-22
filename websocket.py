@@ -41,7 +41,7 @@ class websocket(object):
 
         `protocols` is a list of supported protocol names.
 
-        `extensions` is a list of supported extension classes.
+        `extensions` is a list of supported extensions (`Extension` instances).
 
         `origin` (for client sockets) is the value for the "Origin" header sent
         in a client handshake .
@@ -68,6 +68,8 @@ class websocket(object):
         self.sock = sock or socket.socket(sfamily, socket.SOCK_STREAM, sproto)
         self.secure = False
         self.handshake_sent = False
+        self.hooks_send = []
+        self.hooks_recv = []
 
     def bind(self, address):
         self.sock.bind(address)
@@ -104,8 +106,8 @@ class websocket(object):
         Send a number of frames.
         """
         for frame in args:
-            for ext in self.extensions:
-                frame = ext.hook_send(frame)
+            for hook in self.hooks_send:
+                frame = hook(frame)
 
             #print 'send frame:', frame, 'to %s:%d' % self.sock.getpeername()
             self.sock.sendall(frame.pack())
@@ -117,8 +119,8 @@ class websocket(object):
         """
         frame = receive_frame(self.sock)
 
-        for ext in reversed(self.extensions):
-            frame = ext.hook_recv(frame)
+        for hook in self.hooks_recv:
+            frame = hook(frame)
 
         #print 'receive frame:', frame, 'from %s:%d' % self.sock.getpeername()
         return frame
@@ -156,3 +158,10 @@ class websocket(object):
 
         self.secure = True
         self.sock = ssl.wrap_socket(self.sock, *args, **kwargs)
+
+    def add_hook(self, send=None, recv=None):
+        if send:
+            self.hooks_send.append(send)
+
+        if recv:
+            self.hooks_recv.prepend(recv)

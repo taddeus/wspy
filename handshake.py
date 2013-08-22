@@ -142,14 +142,20 @@ class ServerHandshake(Handshake):
         if 'Sec-WebSocket-Extensions' in headers:
             supported_ext = dict((e.name, e) for e in self.wsock.extensions)
             extensions = []
+            all_params = []
 
             for ext in split_stripped(headers['Sec-WebSocket-Extensions']):
                 name, params = parse_param_hdr(ext)
 
                 if name in supported_ext:
-                    extensions.append(supported_ext[name](**params))
+                    extensions.append(supported_ext[name])
+                    all_params.append(params)
 
             self.wsock.extensions = filter_extensions(extensions)
+
+            for ext, params in zip(self.wsock.extensions, all_params):
+                hook = ext.Hook(**params)
+                self.wsock.add_hook(send=hook.send, recv=hook.recv)
         else:
             self.wsock.extensions = []
 
@@ -183,9 +189,10 @@ class ServerHandshake(Handshake):
             yield 'Sec-WebSocket-Protocol', self.wsock.protocol
 
         if self.wsock.extensions:
-            values = [format_param_hdr(e.name, e.header_params())
+            values = [format_param_hdr(e.name, e.request)
                       for e in self.wsock.extensions]
             yield 'Sec-WebSocket-Extensions', ', '.join(values)
+
 
 class ClientHandshake(Handshake):
     """
@@ -230,7 +237,7 @@ class ClientHandshake(Handshake):
         if accept != required_accept:
             self.fail('invalid websocket accept header "%s"' % accept)
 
-        # Compare extensions
+        # Compare extensions, add hooks only for those returned by server
         if 'Sec-WebSocket-Extensions' in headers:
             supported_ext = dict((e.name, e) for e in self.wsock.extensions)
             self.wsock.extensions = []
@@ -242,7 +249,9 @@ class ClientHandshake(Handshake):
                     raise HandshakeError('server handshake contains '
                                          'unsupported extension "%s"' % name)
 
-                self.wsock.extensions.append(supported_ext[name](**params))
+                hook = supported_ext[name].Hook(**params)
+                self.wsock.extensions.append(supported_ext[name])
+                self.wsock.add_hook(send=hook.send, recv=hook.recv)
 
         # Assert that returned protocol (if any) is supported
         if 'Sec-WebSocket-Protocol' in headers:
@@ -325,7 +334,7 @@ class ClientHandshake(Handshake):
             yield 'Sec-WebSocket-Protocol', ', '.join(self.wsock.protocols)
 
         if self.wsock.extensions:
-            values = [format_param_hdr(e.name, e.header_params())
+            values = [format_param_hdr(e.name, e.request)
                       for e in self.wsock.extensions]
             yield 'Sec-WebSocket-Extensions', ', '.join(values)
 
