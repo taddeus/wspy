@@ -31,8 +31,8 @@ class Server(object):
     >>> EchoServer(('', 8000)).run()
     """
 
-    def __init__(self, address, loglevel=logging.INFO, protocols=[],
-                 secure=False, max_join_time=2.0, **kwargs):
+    def __init__(self, address, loglevel=logging.INFO, ssl_args=None,
+                 max_join_time=2.0, **kwargs):
         """
         Constructor for a simple web socket server.
 
@@ -45,10 +45,11 @@ class Server(object):
         `protocols` and `extensions` are passed directly to the websocket
         constructor.
 
-        `secure` is a flag indicating whether the server is SSL enabled. In
-        this case, `keyfile` and `certfile` must be specified. Any additional
-        keyword arguments are passed to `websocket.enable_ssl` (and thus to
-        `ssl.wrap_socket`).
+        `ssl_args` is a dictionary with arguments for `websocket.enable_ssl`
+        (and thus to ssl.wrap_socket).  If omitted, the server is not
+        SSL-enabled. If specified, at least the dictionary keys "keyfile" and
+        "certfile" must be present because these are required arguments for
+        `websocket.enable_ssl` for a server socket.
 
         `max_join_time` is the maximum time (in seconds) to wait for client
         responses after sending CLOSE frames, it defaults to 2 seconds.
@@ -61,11 +62,11 @@ class Server(object):
         hostname, port = address
         logging.info('Starting server at %s://%s:%d', scheme, hostname, port)
 
-        self.sock = websocket(protocols=protocols, extensions=extensions)
+        self.sock = websocket(**kwargs)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        if secure:
-            self.sock.enable_ssl(server_side=True, **kwargs)
+        if ssl_args:
+            self.sock.enable_ssl(server_side=True, **ssl_args)
 
         self.sock.bind(address)
         self.sock.listen(5)

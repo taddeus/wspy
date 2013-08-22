@@ -16,6 +16,6 @@ class EchoServer(Server):
 
 
 if __name__ == '__main__':
-    EchoServer(8000, 'localhost',
-               #secure=True, keyfile='cert.pem', certfile='cert.pem',
+    EchoServer(('localhost', 8000),
+               #ssl_args=dict(keyfile='cert.pem', certfile='cert.pem'),
                loglevel=logging.DEBUG).run()
