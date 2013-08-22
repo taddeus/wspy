@@ -31,7 +31,7 @@ class websocket(object):
     >>> sock.send(twspy.Frame(twspy.OPCODE_TEXT, 'Hello, Server!'))
     """
     def __init__(self, sock=None, protocols=[], extensions=[], origin=None,
-                 trusted_origins=[], location='/', auth=None,
+                 location='/', trusted_origins=[], locations=[], auth=None,
                  sfamily=socket.AF_INET, sproto=0):
         """
         Create a regular TCP socket of family `family` and protocol
@@ -46,13 +46,21 @@ class websocket(object):
         `origin` (for client sockets) is the value for the "Origin" header sent
         in a client handshake .
 
-        `trusted_origins` (for servere sockets) is a list of expected values
+        `location` (for client sockets) is optional, used to request a
+        particular resource in the HTTP handshake. In a URL, this would show as
+        ws://host[:port]/<location>. Use this when the server serves multiple
+        resources (see `locations`).
+
+        `trusted_origins` (for server sockets) is a list of expected values
         for the "Origin" header sent by a client. If the received Origin header
         has value not in this list, a HandshakeError is raised. If the list is
         empty (default), all origins are excepted.
 
-        `location` is optional, used for the HTTP handshake. In a URL, this
-        would show as ws://host[:port]/path.
+        `locations` (for server sockets) is an optional list of resources
+        serverd by this server. If specified (without trailing slashes), these
+        are used to verify the resource location requested by a client. The
+        requested location may be used to distinquish different services in a
+        server implementation.
 
         `auth` is optional, used for HTTP Basic or Digest authentication during
         the handshake. It must be specified as a (username, password) tuple.
@@ -62,8 +70,9 @@ class websocket(object):
         self.protocols = protocols
         self.extensions = extensions
         self.origin = origin
-        self.trusted_origins = trusted_origins
         self.location = location
+        self.trusted_origins = trusted_origins
+        self.locations = locations
         self.auth = auth
 
         self.secure = False
@@ -90,7 +99,8 @@ class websocket(object):
         """
         sock, address = self.sock.accept()
         wsock = websocket(sock)
-        ServerHandshake(wsock).perform()
+        wsock.secure = self.secure
+        ServerHandshake(wsock).perform(self)
         wsock.handshake_sent = True
         return wsock, address
 

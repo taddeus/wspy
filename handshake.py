@@ -27,7 +27,8 @@ class Handshake(object):
         raw, headers = self.receive_headers()
 
         # Request must be HTTP (at least 1.1) GET request, find the location
-        match = re.search(r'^GET (.*) HTTP/1.1\r\n', raw)
+        # (without trailing slash)
+        match = re.search(r'^GET (.*?)/* HTTP/1.1\r\n', raw)
 
         if match is None:
             self.fail('not a valid HTTP 1.1 GET request')
@@ -84,14 +85,18 @@ class ServerHandshake(Handshake):
     request headers sent by the client are invalid, a HandshakeError is raised.
     """
 
-    def perform(self):
+    def perform(self, ssock):
         # Receive and validate client handshake
-        self.wsock.location, headers = self.receive_request()
+        location, headers = self.receive_request()
+        self.wsock.location = location
+        self.wsock.request_headers = headers
 
         # Send server handshake in response
-        self.send_headers(self.response_headers(headers))
+        self.send_headers(self.response_headers(ssock))
 
-    def response_headers(self, headers):
+    def response_headers(self, ssock):
+        headers = self.wsock.request_headers
+
         # Check if headers that MUST be present are actually present
         for name in ('Host', 'Upgrade', 'Connection', 'Sec-WebSocket-Key',
                      'Sec-WebSocket-Version'):
@@ -114,19 +119,16 @@ class ServerHandshake(Handshake):
 
         # Origin must be present if browser client, and must match the list of
         # trusted origins
-        origin = 'null'
+        origin = headers.get('Origin', 'null')
 
-        if 'Origin' not in headers:
+        if origin == 'null':
             if 'User-Agent' in headers:
                 self.fail('browser client must specify "Origin" header')
 
-            if self.wsock.trusted_origins:
+            if ssock.trusted_origins:
                 self.fail('no "Origin" header specified, assuming untrusted')
-        elif self.wsock.trusted_origins:
-            origin = headers['Origin']
-
-            if origin not in self.wsock.trusted_origins:
-                self.fail('untrusted origin "%s"' % origin)
+        elif ssock.trusted_origins and origin not in ssock.trusted_origins:
+            self.fail('untrusted origin "%s"' % origin)
 
         # Only a supported protocol can be returned
         client_proto = split_stripped(headers['Sec-WebSocket-Protocol']) \
@@ -134,13 +136,13 @@ class ServerHandshake(Handshake):
         self.wsock.protocol = None
 
         for p in client_proto:
-            if p in self.wsock.protocols:
+            if p in ssock.protocols:
                 self.wsock.protocol = p
                 break
 
         # Only supported extensions are returned
         if 'Sec-WebSocket-Extensions' in headers:
-            supported_ext = dict((e.name, e) for e in self.wsock.extensions)
+            supported_ext = dict((e.name, e) for e in ssock.extensions)
             extensions = []
             all_params = []
 
@@ -158,6 +160,12 @@ class ServerHandshake(Handshake):
                 self.wsock.add_hook(send=hook.send, recv=hook.recv)
         else:
             self.wsock.extensions = []
+
+        # Check if requested resource location is served by this server
+        if ssock.locations:
+            if self.wsock.location not in ssock.locations:
+                raise HandshakeError('location "%s" is not supported by this '
+                                     'server' % self.wsock.location)
 
         # Encode acceptation key using the WebSocket GUID
         key = headers['Sec-WebSocket-Key'].strip()
@@ -181,8 +189,8 @@ class ServerHandshake(Handshake):
         yield 'HTTP/1.1 101 Web Socket Protocol Handshake'
         yield 'Upgrade', 'websocket'
         yield 'Connection', 'Upgrade'
-        yield 'WebSocket-Origin', origin
-        yield 'WebSocket-Location', location
+        yield 'Sec-WebSocket-Origin', origin
+        yield 'Sec-WebSocket-Location', location
         yield 'Sec-WebSocket-Accept', accept
 
         if self.wsock.protocol:
