@@ -74,7 +74,7 @@ class DeflateFrame(Extension):
         if cto is not False and cto is not True:
             raise ValueError('"no_context_takeover" must have no value')
 
-    class Hook:
+    class Hook(Extension.Hook):
         def send(self, frame):
             if not frame.rsv1:
                 frame.rsv1 = True
@@ -116,7 +116,7 @@ class Multiplex(Extension):
 
         # TODO: check "quota" value
 
-    class Hook:
+    class Hook(Extension.Hook):
         def send(self, frame):
             raise NotImplementedError  # TODO
 
@@ -129,9 +129,9 @@ def filter_extensions(extensions):
     Remove extensions that use conflicting rsv bits and/or opcodes, with the
     first options being the most preferable.
     """
-    rsv1_reserved = True
-    rsv2_reserved = True
-    rsv3_reserved = True
+    rsv1_reserved = False
+    rsv2_reserved = False
+    rsv3_reserved = False
     opcodes_reserved = []
     compat = []
 

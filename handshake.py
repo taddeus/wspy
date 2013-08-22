@@ -119,12 +119,12 @@ class ServerHandshake(Handshake):
 
         # Origin must be present if browser client, and must match the list of
         # trusted origins
+        if 'Origin' not in headers and 'User-Agent' in headers:
+            self.fail('browser client must specify "Origin" header')
+
         origin = headers.get('Origin', 'null')
 
         if origin == 'null':
-            if 'User-Agent' in headers:
-                self.fail('browser client must specify "Origin" header')
-
             if ssock.trusted_origins:
                 self.fail('no "Origin" header specified, assuming untrusted')
         elif ssock.trusted_origins and origin not in ssock.trusted_origins:
@@ -390,7 +390,7 @@ def parse_param_hdr(hdr):
 
         params[key] = value
 
-    yield name, params
+    return name, params
 
 
 def format_param_hdr(value, params):

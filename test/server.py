@@ -7,6 +7,7 @@ basepath = abspath(dirname(abspath(__file__)) + '/..')
 sys.path.insert(0, basepath)
 
 from server import Server
+from extension import DeflateFrame
 
 
 class EchoServer(Server):
@@ -15,7 +16,11 @@ class EchoServer(Server):
         client.send(message)
 
 
+class WebkitDeflateFrame(DeflateFrame):
+    name = 'x-webkit-deflate-frame'
+
+
 if __name__ == '__main__':
-    EchoServer(('localhost', 8000),
+    EchoServer(('localhost', 8000), extensions=[WebkitDeflateFrame()],
                #ssl_args=dict(keyfile='cert.pem', certfile='cert.pem'),
                loglevel=logging.DEBUG).run()
