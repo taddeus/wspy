@@ -7,7 +7,6 @@ from ssl import SSLError
 
 from websocket import websocket
 from connection import Connection
-from frame import CLOSE_NORMAL
 from errors import HandshakeError
 
 
