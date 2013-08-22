@@ -42,8 +42,8 @@ class Server(object):
         logging.INFO only shows server start/stop messages, logging.DEBUG shows
         clients (dis)connecting and messages being sent/received.
 
-        `protocols` is a list of supported protocols, passed directly to the
-        websocket constructor.
+        `protocols` and `extensions` are passed directly to the websocket
+        constructor.
 
         `secure` is a flag indicating whether the server is SSL enabled. In
         this case, `keyfile` and `certfile` must be specified. Any additional
@@ -61,7 +61,7 @@ class Server(object):
         hostname, port = address
         logging.info('Starting server at %s://%s:%d', scheme, hostname, port)
 
-        self.sock = websocket()
+        self.sock = websocket(protocols=protocols, extensions=extensions)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         if secure:
