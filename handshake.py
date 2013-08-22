@@ -357,17 +357,22 @@ class ClientHandshake(Handshake):
                                 password=password.encode('utf-8'))
 
 
-def split_stripped(value, delim=','):
-    return map(str.strip, str(value).split(delim)) if value else []
+def split_stripped(value, delim=',', maxsplits=-1):
+    return map(str.strip, str(value).split(delim, maxsplits)) if value else []
 
 
 def parse_param_hdr(hdr):
-    name, paramstr = split_stripped(hdr, ';')
+    if ';' in hdr:
+        name, paramstr = split_stripped(hdr, ';', 1)
+    else:
+        name = hdr
+        paramstr = ''
+
     params = {}
 
     for param in split_stripped(paramstr):
         if '=' in param:
-            key, value = split_stripped(param, '=')
+            key, value = split_stripped(param, '=', 1)
 
             if value.isdigit():
                 value = int(value)
