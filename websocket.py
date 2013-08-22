@@ -164,4 +164,4 @@ class websocket(object):
             self.hooks_send.append(send)
 
         if recv:
-            self.hooks_recv.prepend(recv)
+            self.hooks_recv.insert(0, recv)
