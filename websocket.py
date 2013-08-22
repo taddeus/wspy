@@ -159,9 +159,32 @@ class websocket(object):
         self.secure = True
         self.sock = ssl.wrap_socket(self.sock, *args, **kwargs)
 
-    def add_hook(self, send=None, recv=None):
+    def add_hook(self, send=None, recv=None, prepend=False):
+        """
+        Add a pair of send and receive hooks that are called for each frame
+        that is sent or received. A hook is a function that receives a single
+        argument - a Frame instance - and returns a `Frame` instance as well.
+
+        `prepend` is a flag indicating whether the `send` hook
+
+        For example, the following code creates a `Frame` instance for data
+        being sent and removes the instance for received data. This way, data
+        can be sent and received as if on a regular socket.
+        >>> import twspy
+        >>> sock.add_hook(lambda data: tswpy.Frame(tswpy.OPCODE_TEXT, data),
+        >>>               lambda f: f.data)
+
+        To add base64 encoding to the example above:
+        >>> import base64
+        >>> sock.add_hook(base64.encodestring, base64.decodestring, True)
+
+        Note that here `prepend=True`, so that data passed to `send()` is first
+        encoded and then packed into a frame. Of course, one could also decide
+        to add the base64 hook first, or to return a new `Frame` instance with
+        base64-encoded data.
+        """
         if send:
-            self.hooks_send.append(send)
+            self.hooks_send.insert(0 if prepend else -1, send)
 
         if recv:
-            self.hooks_recv.insert(0, recv)
+            self.hooks_recv.insert(-1 if prepend else 0, recv)
