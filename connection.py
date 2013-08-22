@@ -49,6 +49,9 @@ class Connection(object):
         self.ping_sent = False
         self.ping_payload = None
 
+        self.hooks_send = []
+        self.hooks_recv = []
+
         self.onopen()
 
     def send(self, message, fragment_size=None, mask=False):
@@ -57,6 +60,9 @@ class Connection(object):
         fragmented into multiple frames whose payload size does not extend
         `fragment_size`.
         """
+        for hook in self.hooks_send:
+            message = hook(message)
+
         if fragment_size is None:
             self.sock.send(message.frame(mask=mask))
         else:
@@ -87,7 +93,12 @@ class Connection(object):
         for f in fragments:
             payload += f.payload
 
-        return create_message(fragments[0].opcode, payload)
+        message = create_message(fragments[0].opcode, payload)
+
+        for hook in self.hooks_recv:
+            message = hook(message)
+
+        return message
 
     def handle_control_frame(self, frame):
         """
@@ -190,6 +201,36 @@ class Connection(object):
 
         self.onclose(code, reason)
         self.sock.close()
+
+    def add_hook(self, send=None, recv=None, prepend=False):
+        """
+        Add a pair of send and receive hooks that are called for each frame
+        that is sent or received. A hook is a function that receives a single
+        argument - a Message instance - and returns a `Message` instance as
+        well.
+
+        `prepend` is a flag indicating whether the send hook is prepended to
+        the other send hooks.
+
+        For example, to add an automatic JSON conversion to messages and
+        eliminate the need to contruct TextMessage instances to all messages:
+        >>> import twspy, json
+        >>> conn = Connection(...)
+        >>> conn.add_hook(lambda data: tswpy.TextMessage(json.dumps(data)),
+        >>>               lambda message: json.loads(message.payload))
+        >>> conn.send({'foo': 'bar'})  # Sends text message {"foo":"bar"}
+        >>> conn.recv()                # May be dict(foo='bar')
+
+        Note that here `prepend=True`, so that data passed to `send()` is first
+        encoded and then packed into a frame. Of course, one could also decide
+        to add the base64 hook first, or to return a new `Frame` instance with
+        base64-encoded data.
+        """
+        if send:
+            self.hooks_send.insert(0 if prepend else -1, send)
+
+        if recv:
+            self.hooks_recv.insert(-1 if prepend else 0, recv)
 
     def onopen(self):
         """

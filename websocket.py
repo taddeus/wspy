@@ -65,11 +65,15 @@ class websocket(object):
         self.trusted_origins = trusted_origins
         self.location = location
         self.auth = auth
-        self.sock = sock or socket.socket(sfamily, socket.SOCK_STREAM, sproto)
+
         self.secure = False
+
         self.handshake_sent = False
+
         self.hooks_send = []
         self.hooks_recv = []
+
+        self.sock = sock or socket.socket(sfamily, socket.SOCK_STREAM, sproto)
 
     def bind(self, address):
         self.sock.bind(address)
@@ -165,14 +169,17 @@ class websocket(object):
         that is sent or received. A hook is a function that receives a single
         argument - a Frame instance - and returns a `Frame` instance as well.
 
-        `prepend` is a flag indicating whether the `send` hook
+        `prepend` is a flag indicating whether the send hook is prepended to
+        the other send hooks. This is expecially useful when a program uses
+        extensions such as the built-in `DeflateFrame` extension. These
+        extensions are installed using these hooks as well.
 
         For example, the following code creates a `Frame` instance for data
         being sent and removes the instance for received data. This way, data
         can be sent and received as if on a regular socket.
         >>> import twspy
         >>> sock.add_hook(lambda data: tswpy.Frame(tswpy.OPCODE_TEXT, data),
-        >>>               lambda f: f.data)
+        >>>               lambda frame: frame.payload)
 
         To add base64 encoding to the example above:
         >>> import base64
