@@ -1,8 +1,7 @@
 import zlib
 
-from frame import ControlFrame
-from errors import SocketClosed
 from extension import Extension
+from frame import ControlFrame
 
 
 class DeflateFrame(Extension):
@@ -21,7 +20,6 @@ class DeflateFrame(Extension):
 
     name = 'deflate-frame'
     rsv1 = True
-    # FIXME: is 32768 (below) correct?
     defaults = {'max_window_bits': 15, 'no_context_takeover': False}
 
     def __init__(self, defaults={}, request={}):
@@ -60,7 +58,7 @@ class DeflateFrame(Extension):
         def recv(self, frame):
             if frame.rsv1:
                 if isinstance(frame, ControlFrame):
-                    raise SocketClosed('received compressed control frame')
+                    raise ValueError('received compressed control frame')
 
                 frame.rsv1 = False
                 frame.payload = self.inflate(frame.payload)
