@@ -8,4 +8,6 @@ from frame import Frame, ControlFrame, OPCODE_CONTINUATION, OPCODE_TEXT, \
 from connection import Connection
 from message import Message, TextMessage, BinaryMessage
 from errors import SocketClosed, HandshakeError, PingError, SSLError
-from extension import Extension, DeflateFrame
+from extension import Extension
+from deflate_frame import DeflateFrame, WebkitDeflateFrame
+#from multiplex import Multiplex

@@ -7,17 +7,13 @@ basepath = abspath(dirname(abspath(__file__)) + '/..')
 sys.path.insert(0, basepath)
 
 from server import Server
-from extension import DeflateFrame
+from deflate_frame import WebkitDeflateFrame
 
 
 class EchoServer(Server):
     def onmessage(self, client, message):
         Server.onmessage(self, client, message)
         client.send(message)
-
-
-class WebkitDeflateFrame(DeflateFrame):
-    name = 'x-webkit-deflate-frame'
 
 
 if __name__ == '__main__':
