@@ -1,3 +1,6 @@
+import zlib
+
+
 class Extension(object):
     name = ''
     rsv1 = False
@@ -58,7 +61,7 @@ class DeflateFrame(Extension):
     name = 'deflate-frame'
     rsv1 = True
     # FIXME: is 32768 (below) correct?
-    defaults = {'max_window_bits': 32768, 'no_context_takeover': True}
+    defaults = {'max_window_bits': 15, 'no_context_takeover': True}
 
     def __init__(self, defaults={}, request={}):
         Extension.__init__(self, defaults, request)
@@ -75,6 +78,22 @@ class DeflateFrame(Extension):
             raise ValueError('"no_context_takeover" must have no value')
 
     class Hook(Extension.Hook):
+        def __init__(self, **kwargs):
+            Extension.Hook.__init__(**kwargs)
+
+            other_wbits = self.request.get('max_window_bits', 15)
+
+            # Don't request default value of max_window_bits
+            if 'max_window_bits' in self.request and other_wbits == 15:
+                del self.request['max_window_bits']
+
+            if not self.no_context_takeover:
+                self.com = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
+                                            zlib.DEFLATED,
+                                            self.max_window_bits)
+
+            self.dec = zlib.decompressobj(other_wbits)
+
         def send(self, frame):
             if not frame.rsv1:
                 frame.rsv1 = True
@@ -90,10 +109,18 @@ class DeflateFrame(Extension):
             return frame
 
         def deflate(self, data):
-            raise NotImplementedError  # TODO
+            if self.no_context_takeover:
+                if self.max_window_bits == 15:
+                    return zlib.compress(data)
+
+                self.com = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
+                                            zlib.DEFLATED,
+                                            self.max_window_bits)
+
+            return self.com.compress(data)
 
         def inflate(self, data):
-            raise NotImplementedError  # TODO
+            return self.dec.decompress(data)
 
 
 class Multiplex(Extension):
