@@ -30,8 +30,8 @@ class DeflateFrame(Extension):
 
         if not isinstance(mwb, int):
             raise ValueError('"max_window_bits" must be an integer')
-        elif mwb > 32768:
-            raise ValueError('"max_window_bits" may not be larger than 32768')
+        elif mwb > 15:
+            raise ValueError('"max_window_bits" may not be larger than 15')
 
         if cto is not False and cto is not True:
             raise ValueError('"no_context_takeover" must have no value')
