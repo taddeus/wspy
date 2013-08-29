@@ -22,8 +22,10 @@ class Message(object):
 
 class TextMessage(Message):
     def __init__(self, payload):
-        text = str(payload).encode('utf-8')
-        super(TextMessage, self).__init__(OPCODE_TEXT, text)
+        super(TextMessage, self).__init__(OPCODE_TEXT, unicode(payload))
+
+    def frame(self, mask=False):
+        return Frame(self.opcode, self.payload.encode('utf-8'), mask=mask)
 
     def __str__(self):
         if len(self.payload) > 30:
@@ -35,12 +37,12 @@ class TextMessage(Message):
 
 class BinaryMessage(Message):
     def __init__(self, payload):
-        super(BinaryMessage, self).__init__(OPCODE_BINARY, payload)
+        super(BinaryMessage, self).__init__(OPCODE_BINARY, bytearray(payload))
 
 
 def create_message(opcode, payload):
     if opcode == OPCODE_TEXT:
-        return TextMessage(payload)
+        return TextMessage(payload.decode('utf-8'))
 
     if opcode == OPCODE_BINARY:
         return BinaryMessage(payload)
