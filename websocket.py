@@ -18,7 +18,7 @@ class websocket(object):
     >>> sock = twspy.websocket()
     >>> sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     >>> sock.bind(('', 8000))
-    >>> sock.listen()
+    >>> sock.listen(5)
 
     >>> client = sock.accept()
     >>> client.send(twspy.Frame(twspy.OPCODE_TEXT, 'Hello, Client!'))
