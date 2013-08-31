@@ -6,6 +6,12 @@ from handshake import ServerHandshake, ClientHandshake
 from errors import SSLError
 
 
+INHERITED_ATTRS = ['bind', 'close', 'listen', 'fileno', 'getpeername',
+                   'getsockname', 'getsockopt', 'setsockopt', 'setblocking',
+                   'settimeout', 'gettimeout', 'shutdown', 'family', 'type',
+                   'proto']
+
+
 class websocket(object):
     """
     Implementation of web socket, upgrades a regular TCP socket to a websocket
@@ -84,11 +90,12 @@ class websocket(object):
 
         self.sock = sock or socket.socket(sfamily, socket.SOCK_STREAM, sproto)
 
-    def bind(self, address):
-        self.sock.bind(address)
+    def __getattr__(self, name):
+        if name in INHERITED_ATTRS:
+            return getattr(self.sock, name)
 
-    def listen(self, backlog):
-        self.sock.listen(backlog)
+        raise AttributeError("'%s' has no attribute '%s'"
+                             % (self.__class__.__name__, name))
 
     def accept(self):
         """
@@ -145,21 +152,6 @@ class websocket(object):
         frames, or a combination of both.
         """
         return [self.recv() for i in xrange(n)]
-
-    def getpeername(self):
-        return self.sock.getpeername()
-
-    def getsockname(self):
-        return self.sock.getsockname()
-
-    def setsockopt(self, level, optname, value):
-        self.sock.setsockopt(level, optname, value)
-
-    def getsockopt(self, level, optname):
-        return self.sock.getsockopt(level, optname)
-
-    def close(self):
-        self.sock.close()
 
     def enable_ssl(self, *args, **kwargs):
         """
