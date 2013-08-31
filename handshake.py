@@ -1,17 +1,21 @@
 import os
 import re
-from hashlib import sha1
+import socket
+import time
 from base64 import b64encode
+from hashlib import sha1
 from urlparse import urlparse
 
-from python_digest import build_authorization_request
 from errors import HandshakeError
 from extension import filter_extensions
+from python_digest import build_authorization_request
 
 
 WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 WS_VERSION = '13'
 MAX_REDIRECTS = 10
+HDR_TIMEOUT = 5
+MAX_HDR_LEN = 512
 
 
 class Handshake(object):
@@ -50,20 +54,42 @@ class Handshake(object):
 
     def receive_headers(self):
         # Receive entire HTTP header
-        raw_headers = ''
+        hdr = ''
 
-        while raw_headers[-4:] not in ('\r\n\r\n', '\n\n'):
-            raw_headers += self.sock.recv(512).decode('utf-8', 'ignore')
+        sock_timeout = self.sock.gettimeout()
 
+        try:
+            force_timeout = sock_timeout is None
+            timeout = HDR_TIMEOUT if force_timeout else sock_timeout
+            self.sock.settimeout(timeout)
+
+            start_time = time.time()
+
+            while hdr[-4:] != '\r\n\r\n' and len(hdr) < MAX_HDR_LEN:
+                hdr += self.sock.recv(1)
+
+                time_diff = time.time() - start_time
+
+                if time_diff > timeout:
+                    raise socket.timeout
+
+                self.sock.settimeout(timeout - time_diff)
+        except socket.timeout:
+            self.sock.close()
+            raise HandshakeError('timeout while receiving handshake headers')
+
+        self.sock.settimeout(sock_timeout)
+
+        hdr = hdr.decode('utf-8', 'ignore')
         headers = {}
 
-        for key, value in re.findall(r'(.*?): ?(.*?)\r\n', raw_headers):
+        for key, value in re.findall(r'(.*?): ?(.*?)\r\n', hdr):
             if key in headers:
                 headers[key] += ', ' + value
             else:
                 headers[key] = value
 
-        return raw_headers, headers
+        return hdr, headers
 
     def send_headers(self, headers):
         # Send request
