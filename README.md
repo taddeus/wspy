@@ -24,6 +24,15 @@ Her is a quick overview of the features in this library:
   implementation is [deflate-frame](http://tools.ietf.org/html/draft-tyoshino-hybi-websocket-perframe-deflate-06).
 
 
+Installation
+============
+
+Use Python's package manager:
+
+    easy_install twspy
+    pip install twspy
+
+
 Basic usage
 ===========
 
