@@ -9,4 +9,5 @@ setup(name='twspy',
       author_email='taddeuskroes@gmail.com',
       url='https://github.com/taddeus/twspy',
       package_dir={'twspy': '.'},
-      packages=['twspy'])
+      packages=['twspy'],
+      license='3-clause BSD License')
