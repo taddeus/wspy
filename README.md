@@ -19,7 +19,7 @@ Her is a quick overview of the features in this library:
   concatenate fragmented messages to individual payloads.
 - HTTP authentication during handshake.
 - An extendible server implementation.
-- Secure sockets using SSL certificates (for 'wss://...' URL's).
+- Secure sockets using SSL certificates (for 'wss://...' URLs).
 - The possibility to add extensions to the web socket protocol. An included
   implementation is [deflate-frame](http://tools.ietf.org/html/draft-tyoshino-hybi-websocket-perframe-deflate-06).
 
