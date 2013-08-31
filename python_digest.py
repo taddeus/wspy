@@ -26,7 +26,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 This code was downloaded from https://github.com/dimagi/python-digest to avoid
-having to download python-digest as a dependency for twspy.
+having to download python-digest as a dependency for wspy.
 '''
 
 try:

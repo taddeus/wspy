@@ -20,21 +20,21 @@ class websocket(object):
     illustrated by the examples below.
 
     Server example:
-    >>> import twspy, socket
-    >>> sock = twspy.websocket()
+    >>> import wspy, socket
+    >>> sock = wspy.websocket()
     >>> sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     >>> sock.bind(('', 8000))
     >>> sock.listen(5)
 
     >>> client = sock.accept()
-    >>> client.send(twspy.Frame(twspy.OPCODE_TEXT, 'Hello, Client!'))
+    >>> client.send(wspy.Frame(wspy.OPCODE_TEXT, 'Hello, Client!'))
     >>> frame = client.recv()
 
     Client example:
-    >>> import twspy
-    >>> sock = twspy.websocket(location='/my/path')
+    >>> import wspy
+    >>> sock = wspy.websocket(location='/my/path')
     >>> sock.connect(('', 8000))
-    >>> sock.send(twspy.Frame(twspy.OPCODE_TEXT, 'Hello, Server!'))
+    >>> sock.send(wspy.Frame(wspy.OPCODE_TEXT, 'Hello, Server!'))
     """
     def __init__(self, sock=None, protocols=[], extensions=[], origin=None,
                  location='/', trusted_origins=[], locations=[], auth=None,
@@ -179,7 +179,7 @@ class websocket(object):
         For example, the following code creates a `Frame` instance for data
         being sent and removes the instance for received data. This way, data
         can be sent and received as if on a regular socket.
-        >>> import twspy
+        >>> import wspy
         >>> sock.add_hook(lambda data: tswpy.Frame(tswpy.OPCODE_TEXT, data),
         >>>               lambda frame: frame.payload)
 

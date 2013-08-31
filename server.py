@@ -15,15 +15,15 @@ class Server(object):
     Websocket server, manages multiple client connections.
 
     Example usage:
-    >>> import twspy
+    >>> import wspy
 
-    >>> class EchoServer(twspy.Server):
+    >>> class EchoServer(wspy.Server):
     >>>     def onopen(self, client):
     >>>         print 'Client %s connected' % client
 
     >>>     def onmessage(self, client, message):
     >>>         print 'Received message "%s"' % message.payload
-    >>>         client.send(twspy.TextMessage(message.payload))
+    >>>         client.send(wspy.TextMessage(message.payload))
 
     >>>     def onclose(self, client):
     >>>         print 'Client %s disconnected' % client

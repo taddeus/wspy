@@ -1,10 +1,10 @@
 About
 =====
 
-*twspy* is a standalone implementation of web sockets for Python, defined by
+*wspy* is a standalone implementation of web sockets for Python, defined by
 [RFC 6455](http://tools.ietf.org/html/rfc6455). The incentive for creating this
 library is the absence of a layered implementation of web sockets outside the
-scope of web servers such as Apache or Nginx. *twspy* does not require any
+scope of web servers such as Apache or Nginx. *wspy* does not require any
 third-party programs or libraries outside Python's standard library. It
 provides low-level access to sockets, as well as high-level functionalities to
 easily set up a web server. Thus, it is both suited for quick server
@@ -29,8 +29,8 @@ Installation
 
 Use Python's package manager:
 
-    easy_install twspy
-    pip install twspy
+    easy_install wspy
+    pip install wspy
 
 
 Basic usage
@@ -43,22 +43,22 @@ Basic usage
 
   Server example:
 
-        import twspy, socket
-        sock = twspy.websocket()
+        import wspy, socket
+        sock = wspy.websocket()
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(('', 8000))
         sock.listen(5)
 
         client = sock.accept()
-        client.send(twspy.Frame(twspy.OPCODE_TEXT, 'Hello, Client!'))
+        client.send(wspy.Frame(wspy.OPCODE_TEXT, 'Hello, Client!'))
         frame = client.recv()
 
   Client example:
 
-        import twspy
-        sock = twspy.websocket(location='/my/path')
+        import wspy
+        sock = wspy.websocket(location='/my/path')
         sock.connect(('', 8000))
-        sock.send(twspy.Frame(twspy.OPCODE_TEXT, 'Hello, Server!'))
+        sock.send(wspy.Frame(wspy.OPCODE_TEXT, 'Hello, Server!'))
 
 - A `Connection` instance represents a connection between two end points, based
   on a `websocket` instance. A connection handles control frames properly, and
@@ -69,20 +69,20 @@ Basic usage
 
   Example of an echo server (sends back what it receives):
 
-        import twspy
+        import wspy
 
-        class EchoConnection(twspy.Connection):
+        class EchoConnection(wspy.Connection):
             def onopen(self):
                 print 'Connection opened at %s:%d' % self.sock.getpeername()
 
             def onmessage(self, message):
                 print 'Received message "%s"' % message.payload
-                self.send(twspy.TextMessage(message.payload))
+                self.send(wspy.TextMessage(message.payload))
 
             def onclose(self, message):
                 print 'Connection closed'
 
-        server = twspy.websocket()
+        server = wspy.websocket()
         server.bind(('', 8000))
         server.listen(5)
 
@@ -99,10 +99,10 @@ Basic usage
   **Note:** For browser clients, you will probably want to use JSON encoding.
   This could, for example, be implemented as follows:
 
-        import twspy, json
+        import wspy, json
 
         def msg(**data):
-            return twspy.TextMessage(json.dumps(data))
+            return wspy.TextMessage(json.dumps(data))
 
         # create some connection `conn`...
 
@@ -120,15 +120,15 @@ Basic usage
 
   For example, the `EchoConnection` example above can be rewritten to:
 
-        import twspy
+        import wspy
 
-        class EchoServer(twspy.Server):
+        class EchoServer(wspy.Server):
             def onopen(self, client):
                 print 'Client %s connected' % client
 
             def onmessage(self, client, message):
                 print 'Received message "%s"' % message.payload
-                client.send(twspy.TextMessage(message.payload))
+                client.send(wspy.TextMessage(message.payload))
 
             def onclose(self, client):
                 print 'Client %s disconnected' % client

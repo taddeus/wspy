@@ -17,20 +17,20 @@ class Connection(object):
     class should implement the on*() event handlers.
 
     Example of an echo server (sends back what it receives):
-    >>> import twspy
+    >>> import wspy
 
-    >>> class EchoConnection(twspy.Connection):
+    >>> class EchoConnection(wspy.Connection):
     >>>     def onopen(self):
     >>>         print 'Connection opened at %s:%d' % self.sock.getpeername()
 
     >>>     def onmessage(self, message):
     >>>         print 'Received message "%s"' % message.payload
-    >>>         self.send(twspy.TextMessage(message.payload))
+    >>>         self.send(wspy.TextMessage(message.payload))
 
     >>>     def onclose(self, message):
     >>>         print 'Connection closed'
 
-    >>> server = twspy.websocket()
+    >>> server = wspy.websocket()
     >>> server.bind(('', 8000))
     >>> server.listen()
 
@@ -214,7 +214,7 @@ class Connection(object):
 
         For example, to add an automatic JSON conversion to messages and
         eliminate the need to contruct TextMessage instances to all messages:
-        >>> import twspy, json
+        >>> import wspy, json
         >>> conn = Connection(...)
         >>> conn.add_hook(lambda data: tswpy.TextMessage(json.dumps(data)),
         >>>               lambda message: json.loads(message.payload))

@@ -2,12 +2,12 @@
 from distutils.core import setup
 
 
-setup(name='twspy',
-      version='0.8',
+setup(name='wspy',
+      version='0.9',
       description='A standalone implementation of websockets (RFC 6455).',
       author='Taddeus Kroes',
       author_email='taddeuskroes@gmail.com',
-      url='https://github.com/taddeus/twspy',
-      package_dir={'twspy': '.'},
-      packages=['twspy'],
+      url='https://github.com/taddeus/wspy',
+      package_dir={'wspy': '.'},
+      packages=['wspy'],
       license='3-clause BSD License')
