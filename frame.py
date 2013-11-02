@@ -194,12 +194,8 @@ class ControlFrame(Frame):
         return code, reason
 
 
-def receive_frame(sock):
-    """
-    Receive a single frame on socket `sock`. The frame scheme is explained in
-    the docs of Frame.pack().
-    """
-    b1, b2 = struct.unpack('!BB', recvn(sock, 2))
+def decode_frame(reader):
+    b1, b2 = struct.unpack('!BB', reader.recvn(2))
 
     final = bool(b1 & 0x80)
     rsv1 = bool(b1 & 0x40)
@@ -211,16 +207,16 @@ def receive_frame(sock):
     payload_len = b2 & 0x7F
 
     if payload_len == 126:
-        payload_len = struct.unpack('!H', recvn(sock, 2))
+        payload_len = struct.unpack('!H', reader.recvn(2))
     elif payload_len == 127:
-        payload_len = struct.unpack('!Q', recvn(sock, 8))
+        payload_len = struct.unpack('!Q', reader.recvn(8))
 
     if masked:
-        masking_key = recvn(sock, 4)
-        payload = mask(masking_key, recvn(sock, payload_len))
+        masking_key = reader.recvn(4)
+        payload = mask(masking_key, reader.recvn(payload_len))
     else:
         masking_key = ''
-        payload = recvn(sock, payload_len)
+        payload = reader.recvn(payload_len)
 
     # Control frames have most significant bit 1
     cls = ControlFrame if opcode & 0x8 else Frame
@@ -229,21 +225,76 @@ def receive_frame(sock):
                rsv1=rsv1, rsv2=rsv2, rsv3=rsv3)
 
 
-def recvn(sock, n):
+def receive_frame(sock):
+    return decode_frame(BlockingSocket(sock))
+
+
+def read_frame(data):
+    reader = BufferedReader(data)
+    frame = decode_frame(reader)
+    return frame, len(data) - reader.offset
+
+
+def pop_frame(data):
+    frame, l = read_frame(data)
+
+
+class BufferedReader(object):
+    def __init__(self, data):
+        self.data = data
+        self.offset = 0
+
+    def recvn(self, n):
+        assert len(self.data) - self.offset >= n
+        self.offset += n
+        return self.data[self.offset - n:self.offset]
+
+
+class BlockingSocket(object):
+    def __init__(self, sock):
+        self.sock = sock
+
+    def recvn(self, n):
+        """
+        Keep receiving data until exactly `n` bytes have been read.
+        """
+        data = ''
+
+        while len(data) < n:
+            received = self.sock.recv(n - len(data))
+
+            if not len(received):
+                raise socket.error('no data read from socket')
+
+            data += received
+
+        return data
+
+
+def contains_frame(data):
     """
-    Keep receiving data from `sock` until exactly `n` bytes have been read.
+    Read the frame length from the start of `data` and check if the data is
+    long enough to contain the entire frame.
     """
-    data = ''
+    if len(data) < 2:
+        return False
 
-    while len(data) < n:
-        received = sock.recv(n - len(data))
+    b2 = struct.unpack('!B', data[1])
+    payload_len = b2 & 0x7F
+    payload_start = 2
 
-        if not len(received):
-            raise socket.error('no data read from socket')
+    if payload_len == 126:
+        if len(data) > 4:
+            payload_len = struct.unpack('!H', data[2:4])
 
-        data += received
+        payload_start = 4
+    elif payload_len == 127:
+        if len(data) > 12:
+            payload_len = struct.unpack('!Q', data[4:12])
 
-    return data
+        payload_start = 12
+
+    return len(data) >= payload_len + payload_start
 
 
 def mask(key, original):

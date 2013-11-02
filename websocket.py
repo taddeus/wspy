@@ -1,7 +1,7 @@
 import socket
 import ssl
 
-from frame import receive_frame
+from frame import receive_frame, pop_frame, contains_frame
 from handshake import ServerHandshake, ClientHandshake
 from errors import SSLError
 
@@ -10,6 +10,11 @@ INHERITED_ATTRS = ['bind', 'close', 'listen', 'fileno', 'getpeername',
                    'getsockname', 'getsockopt', 'setsockopt', 'setblocking',
                    'settimeout', 'gettimeout', 'shutdown', 'family', 'type',
                    'proto']
+
+STATE_INIT = 0
+STATE_READ = 1
+STATE_WRITE = 2
+STATE_CLOSE = 4
 
 
 class websocket(object):
@@ -88,6 +93,11 @@ class websocket(object):
         self.hooks_send = []
         self.hooks_recv = []
 
+        self.state = STATE_INIT
+        self.sendbuf = ''
+        self.recvbuf = ''
+        self.recv_callbacks = []
+
         self.sock = sock or socket.socket(sfamily, socket.SOCK_STREAM, sproto)
 
     def __getattr__(self, name):
@@ -153,6 +163,62 @@ class websocket(object):
         """
         return [self.recv() for i in xrange(n)]
 
+    def queue_send(self, frame):
+        """
+        Enqueue `frame` to the send buffer so that it is send on the next
+        `do_async_send`.
+        """
+        for hook in self.hooks_send:
+            frame = hook(frame)
+
+        self.sendbuf += frame.pack()
+        self.state |= STATE_WRITE
+
+    def queue_recv(self, callback):
+        """
+        Enqueue `callback` to be called when the next frame is recieved by
+        `do_async_recv`.
+        """
+        self.recv_callbacks.push(callback)
+        self.state |= STATE_READ
+
+    def queue_close(self):
+        self.state |= STATE_CLOSE
+
+    def do_async_send(self):
+        """
+        Send any queued data. If all data is sent, STATE_WRITE is removed from
+        the state mask.
+        """
+        assert self.state | STATE_WRITE
+        assert len(self.sendbuf)
+
+        nwritten = self.sock.send(self.sendbuf)
+        self.sendbuf = self.sendbuf[nwritten:]
+
+        if len(self.sendbuf) == 0:
+            self.state ^= STATE_WRITE
+
+    def do_async_recv(self, bufsize):
+        """
+        """
+        assert self.state | STATE_READ
+
+        self.recvbuf += self.sock.recv(bufsize)
+
+        while contains_frame(self.recvbuf):
+            frame, self.recvbuf = pop_frame(self.recvbuf)
+
+            if len(self.recv_callbacks) == 0:
+                raise IndexError('no callback installed for received frame %s'
+                                 % frame)
+
+            cb = self.recv_callbacks.pop(0)
+            cb(frame)
+
+        if len(self.recvbuf) == 0:
+            self.state ^= STATE_READ
+
     def enable_ssl(self, *args, **kwargs):
         """
         Transforms the regular socket.socket to an ssl.SSLSocket for secure
@@ -180,6 +246,7 @@ class websocket(object):
         being sent and removes the instance for received data. This way, data
         can be sent and received as if on a regular socket.
         >>> import wspy
+        >>> sock = wspy.websocket()
         >>> sock.add_hook(lambda data: tswpy.Frame(tswpy.OPCODE_TEXT, data),
         >>>               lambda frame: frame.payload)
 
