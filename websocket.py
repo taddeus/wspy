@@ -190,7 +190,7 @@ class websocket(object):
         Send any queued data. If all data is sent, STATE_WRITE is removed from
         the state mask.
         """
-        assert self.state | STATE_WRITE
+        assert self.state & STATE_WRITE
         assert len(self.sendbuf)
 
         nwritten = self.sock.send(self.sendbuf)
@@ -202,7 +202,7 @@ class websocket(object):
     def do_async_recv(self, bufsize):
         """
         """
-        assert self.state | STATE_READ
+        assert self.state & STATE_READ
 
         self.recvbuf += self.sock.recv(bufsize)
 
