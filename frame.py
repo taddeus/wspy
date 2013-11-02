@@ -195,7 +195,7 @@ class ControlFrame(Frame):
 
 
 def decode_frame(reader):
-    b1, b2 = struct.unpack('!BB', reader.recvn(2))
+    b1, b2 = struct.unpack('!BB', reader.readn(2))
 
     final = bool(b1 & 0x80)
     rsv1 = bool(b1 & 0x40)
@@ -207,16 +207,16 @@ def decode_frame(reader):
     payload_len = b2 & 0x7F
 
     if payload_len == 126:
-        payload_len = struct.unpack('!H', reader.recvn(2))
+        payload_len = struct.unpack('!H', reader.readn(2))
     elif payload_len == 127:
-        payload_len = struct.unpack('!Q', reader.recvn(8))
+        payload_len = struct.unpack('!Q', reader.readn(8))
 
     if masked:
-        masking_key = reader.recvn(4)
-        payload = mask(masking_key, reader.recvn(payload_len))
+        masking_key = reader.readn(4)
+        payload = mask(masking_key, reader.readn(payload_len))
     else:
         masking_key = ''
-        payload = reader.recvn(payload_len)
+        payload = reader.readn(payload_len)
 
     # Control frames have most significant bit 1
     cls = ControlFrame if opcode & 0x8 else Frame
@@ -226,11 +226,11 @@ def decode_frame(reader):
 
 
 def receive_frame(sock):
-    return decode_frame(BlockingSocket(sock))
+    return decode_frame(SocketReader(sock))
 
 
 def read_frame(data):
-    reader = BufferedReader(data)
+    reader = BufferReader(data)
     frame = decode_frame(reader)
     return frame, len(data) - reader.offset
 
@@ -239,22 +239,22 @@ def pop_frame(data):
     frame, l = read_frame(data)
 
 
-class BufferedReader(object):
+class BufferReader(object):
     def __init__(self, data):
         self.data = data
         self.offset = 0
 
-    def recvn(self, n):
+    def readn(self, n):
         assert len(self.data) - self.offset >= n
         self.offset += n
         return self.data[self.offset - n:self.offset]
 
 
-class BlockingSocket(object):
+class SocketReader(object):
     def __init__(self, sock):
         self.sock = sock
 
-    def recvn(self, n):
+    def readn(self, n):
         """
         Keep receiving data until exactly `n` bytes have been read.
         """
