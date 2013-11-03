@@ -232,11 +232,12 @@ def receive_frame(sock):
 def read_frame(data):
     reader = BufferReader(data)
     frame = decode_frame(reader)
-    return frame, len(data) - reader.offset
+    return frame, reader.offset
 
 
 def pop_frame(data):
-    frame, l = read_frame(data)
+    frame, size = read_frame(data)
+    return frame, data[size:]
 
 
 class BufferReader(object):
@@ -279,7 +280,7 @@ def contains_frame(data):
     if len(data) < 2:
         return False
 
-    b2 = struct.unpack('!B', data[1])
+    b2 = struct.unpack('!B', data[1])[0]
     payload_len = b2 & 0x7F
     payload_start = 2
 
@@ -316,3 +317,8 @@ def mask(key, original):
         masked[i] ^= key[i % 4]
 
     return masked
+
+
+def create_close_frame(code, reason):
+    payload = '' if code is None else struct.pack('!H', code) + reason
+    return ControlFrame(OPCODE_CLOSE, payload)

@@ -1,5 +1,4 @@
-from websocket import websocket, STATE_INIT, STATE_READ, STATE_WRITE, \
-                      STATE_CLOSE
+from websocket import websocket
 from server import Server
 from frame import Frame, ControlFrame, OPCODE_CONTINUATION, OPCODE_TEXT, \
         OPCODE_BINARY, OPCODE_CLOSE, OPCODE_PING, OPCODE_PONG, CLOSE_NORMAL, \
@@ -12,3 +11,4 @@ from message import Message, TextMessage, BinaryMessage
 from errors import SocketClosed, HandshakeError, PingError, SSLError
 from extension import Extension
 from deflate_frame import DeflateFrame, WebkitDeflateFrame
+from async import AsyncConnection, AsyncServer

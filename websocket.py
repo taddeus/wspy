@@ -11,12 +11,6 @@ INHERITED_ATTRS = ['bind', 'close', 'listen', 'fileno', 'getpeername',
                    'settimeout', 'gettimeout', 'shutdown', 'family', 'type',
                    'proto']
 
-STATE_INIT = 0
-STATE_READ = 1
-STATE_WRITE = 2
-STATE_CLOSE = 4
-
-
 class websocket(object):
     """
     Implementation of web socket, upgrades a regular TCP socket to a websocket
@@ -43,7 +37,7 @@ class websocket(object):
     """
     def __init__(self, sock=None, protocols=[], extensions=[], origin=None,
                  location='/', trusted_origins=[], locations=[], auth=None,
-                 sfamily=socket.AF_INET, sproto=0):
+                 recv_callback=None, sfamily=socket.AF_INET, sproto=0):
         """
         Create a regular TCP socket of family `family` and protocol
 
@@ -76,6 +70,12 @@ class websocket(object):
         `auth` is optional, used for HTTP Basic or Digest authentication during
         the handshake. It must be specified as a (username, password) tuple.
 
+        `recv_callback` is the callback for received frames in asynchronous
+        sockets. Use in conjunction with setblocking(0). The callback itself
+        may for example change the recv_callback attribute to change the
+        behaviour for the next received message. Can be set when calling
+        `queue_send`.
+
         `sfamily` and `sproto` are used for the regular socket constructor.
         """
         self.protocols = protocols
@@ -93,10 +93,10 @@ class websocket(object):
         self.hooks_send = []
         self.hooks_recv = []
 
-        self.state = STATE_INIT
+        self.sendbuf_frames = []
         self.sendbuf = ''
         self.recvbuf = ''
-        self.recv_callbacks = []
+        self.recv_callback = recv_callback
 
         self.sock = sock or socket.socket(sfamily, socket.SOCK_STREAM, sproto)
 
@@ -163,61 +163,69 @@ class websocket(object):
         """
         return [self.recv() for i in xrange(n)]
 
-    def queue_send(self, frame):
+    def queue_send(self, frame, callback=None, recv_callback=None):
         """
         Enqueue `frame` to the send buffer so that it is send on the next
-        `do_async_send`.
+        `do_async_send`. `callback` is an optional callable to call when the
+        frame has been fully written. `recv_callback` is an optional callable
+        to quickly set the `recv_callback` attribute to.
         """
         for hook in self.hooks_send:
             frame = hook(frame)
 
         self.sendbuf += frame.pack()
-        self.state |= STATE_WRITE
+        self.sendbuf_frames.append([frame, len(self.sendbuf), callback])
 
-    def queue_recv(self, callback):
-        """
-        Enqueue `callback` to be called when the next frame is recieved by
-        `do_async_recv`.
-        """
-        self.recv_callbacks.push(callback)
-        self.state |= STATE_READ
-
-    def queue_close(self):
-        self.state |= STATE_CLOSE
+        if recv_callback:
+            self.recv_callback = recv_callback
 
     def do_async_send(self):
         """
-        Send any queued data. If all data is sent, STATE_WRITE is removed from
-        the state mask.
+        Send any queued data.
         """
-        assert self.state & STATE_WRITE
         assert len(self.sendbuf)
 
         nwritten = self.sock.send(self.sendbuf)
-        self.sendbuf = self.sendbuf[nwritten:]
+        nframes = 0
 
-        if len(self.sendbuf) == 0:
-            self.state ^= STATE_WRITE
+        for entry in self.sendbuf_frames:
+            frame, offset, callback = entry
+
+            if offset <= nwritten:
+                nframes += 1
+
+                if callback:
+                    print 'write cb'
+                    callback()
+            else:
+                entry[1] -= nwritten
+
+        self.sendbuf = self.sendbuf[nwritten:]
+        self.sendbuf_frames = self.sendbuf_frames[nframes:]
 
     def do_async_recv(self, bufsize):
         """
         """
-        assert self.state & STATE_READ
+        data = self.sock.recv(bufsize)
 
-        self.recvbuf += self.sock.recv(bufsize)
+        if len(data) == 0:
+            raise socket.error('no data to receive')
+
+        self.recvbuf += data
 
         while contains_frame(self.recvbuf):
             frame, self.recvbuf = pop_frame(self.recvbuf)
 
-            if len(self.recv_callbacks) == 0:
-                raise IndexError('no callback installed for received frame %s'
-                                 % frame)
+            if not self.recv_callback:
+                raise ValueError('no callback installed for %s' % frame)
 
-            cb = self.recv_callbacks.pop(0)
-            cb(frame)
+            self.recv_callback(frame)
 
-        if len(self.recvbuf) == 0:
-            self.state ^= STATE_READ
+    def can_send(self):
+        return len(self.sendbuf) > 0
+
+    def can_recv(self):
+        return self.recv_callback is not None
 
     def enable_ssl(self, *args, **kwargs):
         """

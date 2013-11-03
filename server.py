@@ -25,14 +25,14 @@ class Server(object):
     >>>         print 'Received message "%s"' % message.payload
     >>>         client.send(wspy.TextMessage(message.payload))
 
-    >>>     def onclose(self, client):
+    >>>     def onclose(self, client, code, reason):
     >>>         print 'Client %s disconnected' % client
 
     >>> EchoServer(('', 8000)).run()
     """
 
     def __init__(self, address, loglevel=logging.INFO, ssl_args=None,
-                 max_join_time=2.0, **kwargs):
+                 max_join_time=2.0, backlog_size=32, **kwargs):
         """
         Constructor for a simple web socket server.
 
@@ -53,6 +53,8 @@ class Server(object):
 
         `max_join_time` is the maximum time (in seconds) to wait for client
         responses after sending CLOSE frames, it defaults to 2 seconds.
+
+        `backlog_size` is directly passed to `websocket.listen`.
         """
         logging.basicConfig(level=loglevel,
                 format='%(asctime)s: %(levelname)s: %(message)s',
@@ -69,14 +71,14 @@ class Server(object):
             self.sock.enable_ssl(server_side=True, **ssl_args)
 
         self.sock.bind(address)
-        self.sock.listen(5)
-
-        self.clients = []
-        self.client_threads = []
+        self.sock.listen(backlog_size)
 
         self.max_join_time = max_join_time
 
     def run(self):
+        self.clients = []
+        self.client_threads = []
+
         while True:
             try:
                 sock, address = self.sock.accept()
@@ -149,10 +151,7 @@ class Server(object):
         msg = 'Closed socket to %s' % client
 
         if code is not None:
-            msg += ' [%d]' % code
-
-        if len(reason):
-            msg += ': ' + reason
+            msg += ': [%d] %s' % (code, reason)
 
         logging.debug(msg)
 
