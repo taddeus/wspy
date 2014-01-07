@@ -79,7 +79,7 @@ Basic usage
                 print 'Received message "%s"' % message.payload
                 self.send(wspy.TextMessage(message.payload))
 
-            def onclose(self, message):
+            def onclose(self, code, reason):
                 print 'Connection closed'
 
         server = wspy.websocket()
