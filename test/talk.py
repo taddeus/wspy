@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 import sys
 import socket
+from os.path import abspath, dirname
+
+basepath = abspath(dirname(abspath(__file__)) + '/..')
+sys.path.insert(0, basepath)
 
 from websocket import websocket
 from connection import Connection
@@ -25,11 +29,11 @@ if __name__ == '__main__':
         try:
             while True:
                 msg = TextMessage(raw_input())
-                print 'send: %s', msg
+                print 'send:', msg
                 conn.send(msg)
 
                 try:
-                    print 'recv: %s' % conn.recv()
+                    print 'recv:', conn.recv()
                 except socket.timeout:
                     print 'no response'
         except EOFError:
