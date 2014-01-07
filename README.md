@@ -69,6 +69,7 @@ Basic usage
 
   Example of an echo server (sends back what it receives):
 
+        import socket
         import wspy
 
         class EchoConnection(wspy.Connection):
@@ -83,6 +84,7 @@ Basic usage
                 print 'Connection closed'
 
         server = wspy.websocket()
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind(('', 8000))
         server.listen(5)
 
