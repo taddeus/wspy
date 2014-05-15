@@ -111,34 +111,37 @@ Basic usage
         conn.send(msg(foo='Hello, World!'))
 
 
-- The built-in `Server` implementation is very basic. It starts a new thread
-  with a `Connection.receive_forever()` loop for each client that connects. It
-  also handles client crashes properly. By default, a `Server` instance only
-  logs every event using Python's `logging` module. To create a custom server,
-  The `Server` class should be extended and its event handlers overwritten. The
-  event handlers are named identically to the `Connection` event handlers, but
-  they also receive an additional `client` argument. This argument is a
-  modified `Connection` instance, so you can invoke `send()` and `recv()`.
+Built-in Server
+===============
 
-  For example, the `EchoConnection` example above can be rewritten to:
+The built-in `Server` implementation is very basic. It starts a new thread with
+a `Connection.receive_forever()` loop for each client that connects. It also
+handles client crashes properly. By default, a `Server` instance only logs
+every event using Python's `logging` module. To create a custom server, The
+`Server` class should be extended and its event handlers overwritten. The event
+handlers are named identically to the `Connection` event handlers, but they
+also receive an additional `client` argument. This argument is a modified
+`Connection` instance, so you can invoke `send()` and `recv()`.
 
-        import wspy
+For example, the `EchoConnection` example above can be rewritten to:
 
-        class EchoServer(wspy.Server):
-            def onopen(self, client):
-                print 'Client %s connected' % client
+      import wspy
 
-            def onmessage(self, client, message):
-                print 'Received message "%s"' % message.payload
-                client.send(wspy.TextMessage(message.payload))
+      class EchoServer(wspy.Server):
+          def onopen(self, client):
+              print 'Client %s connected' % client
 
-            def onclose(self, client, code, reason):
-                print 'Client %s disconnected' % client
+          def onmessage(self, client, message):
+              print 'Received message "%s"' % message.payload
+              client.send(wspy.TextMessage(message.payload))
 
-        EchoServer(('', 8000)).run()
+          def onclose(self, client, code, reason):
+              print 'Client %s disconnected' % client
 
-  The server can be stopped by typing CTRL-C in the command line. The
-  `KeyboardInterrupt` raised when this happens is caught by the server.
+      EchoServer(('', 8000)).run()
+
+The server can be stopped by typing CTRL-C in the command line. The
+`KeyboardInterrupt` raised when this happens is caught by the server.
 
 
 Extensions

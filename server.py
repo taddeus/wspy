@@ -25,7 +25,7 @@ class Server(object):
     >>>         print 'Received message "%s"' % message.payload
     >>>         client.send(wspy.TextMessage(message.payload))
 
-    >>>     def onclose(self, client):
+    >>>     def onclose(self, client, code, reason):
     >>>         print 'Client %s disconnected' % client
 
     >>> EchoServer(('', 8000)).run()
