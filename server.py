@@ -136,27 +136,22 @@ class Server(object):
         self.onclose(client, code, reason)
 
     def onopen(self, client):
-        logging.debug('Opened socket to %s', client)
+        return NotImplemented
 
     def onmessage(self, client, message):
-        logging.debug('Received %s from %s', message, client)
+        return NotImplemented
 
     def onping(self, client, payload):
-        logging.debug('Sent ping "%s" to %s', payload, client)
+        return NotImplemented
 
     def onpong(self, client, payload):
-        logging.debug('Received pong "%s" from %s', payload, client)
+        return NotImplemented
 
     def onclose(self, client, code, reason):
-        msg = 'Closed socket to %s' % client
-
-        if code is not None:
-            msg += ': [%d] %s' % (code, reason)
-
-        logging.debug(msg)
+        return NotImplemented
 
     def onerror(self, client, e):
-        logging.error(format_exc(e))
+        return NotImplemented
 
 
 class Client(Connection):
@@ -175,21 +170,32 @@ class Client(Connection):
         Connection.send(self, message, fragment_size=fragment_size, mask=mask)
 
     def onopen(self):
+        logging.debug('Opened socket to %s', self)
         self.server.onopen(self)
 
     def onmessage(self, message):
+        logging.debug('Received %s from %s', message, self)
         self.server.onmessage(self, message)
 
     def onping(self, payload):
+        logging.debug('Sent ping "%s" to %s', payload, self)
         self.server.onping(self, payload)
 
     def onpong(self, payload):
+        logging.debug('Received pong "%s" from %s', payload, self)
         self.server.onpong(self, payload)
 
     def onclose(self, code, reason):
+        msg = 'Closed socket to %s' % self
+
+        if code is not None:
+            msg += ': [%d] %s' % (code, reason)
+
+        logging.debug(msg)
         self.server.remove_client(self, code, reason)
 
     def onerror(self, e):
+        logging.error(format_exc(e))
         self.server.onerror(self, e)
 
 

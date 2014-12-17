@@ -195,7 +195,6 @@ class websocket(object):
                 nframes += 1
 
                 if callback:
-                    print 'write cb'
                     callback()
             else:
                 entry[1] -= nwritten

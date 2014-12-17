@@ -33,7 +33,7 @@ class AsyncConnection(Connection):
                              'instead' % frame)
 
     def send(self, message, fragment_size=None, mask=False):
-        frames = self.message_to_frames(message, fragment_size, mask)
+        frames = list(self.message_to_frames(message, fragment_size, mask))
 
         for frame in frames[:-1]:
             self.sock.queue_send(frame)
@@ -98,7 +98,7 @@ class AsyncServer(Server):
 
     @property
     def clients(self):
-        return self.conns.itervalues()
+        return self.conns.values()
 
     def remove_client(self, client, code, reason):
         self.epoll.unregister(client.fno)
@@ -138,18 +138,10 @@ class AsyncServer(Server):
                 except SocketClosed:
                     continue
                 except Exception as e:
-                    logging.error(format_exc(e))
+                    logging.error(format_exc(e).rstrip())
                     continue
 
-                mask = 0
-
-                if conn.sock.can_send():
-                    mask |= EPOLLOUT
-
-                if conn.sock.can_recv():
-                    mask |= EPOLLIN
-
-                self.epoll.modify(fileno, mask)
+                self.update_mask(conn)
 
     def run(self):
         try:
@@ -162,8 +154,19 @@ class AsyncServer(Server):
             self.epoll.close()
             self.sock.close()
 
+    def update_mask(self, conn):
+        mask = 0
+
+        if conn.sock.can_send():
+            mask |= EPOLLOUT
+
+        if conn.sock.can_recv():
+            mask |= EPOLLIN
+
+        self.epoll.modify(conn.sock.fileno(), mask)
+
     def onsend(self, client, message):
-        logging.debug('Written "%s" to %s', message, client)
+        return NotImplemented
 
 
 class AsyncClient(Client, AsyncConnection):
@@ -174,8 +177,10 @@ class AsyncClient(Client, AsyncConnection):
     def send(self, message, fragment_size=None, mask=False):
         logging.debug('Enqueueing %s to %s', message, self)
         AsyncConnection.send(self, message, fragment_size, mask)
+        self.server.update_mask(self)
 
     def onsend(self, message):
+        logging.debug('Finished sending %s to %s', message, self)
         self.server.onsend(self, message)
 
 
