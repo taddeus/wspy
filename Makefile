@@ -1,7 +1,6 @@
-.PHONY: check clean
+.PHONY: all clean
 
-check:
-	@python test/server.py
+all:
 
 clean:
 	find -name \*.pyc -delete
