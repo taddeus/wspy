@@ -15,7 +15,7 @@ WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 WS_VERSION = '13'
 MAX_REDIRECTS = 10
 HDR_TIMEOUT = 5
-MAX_HDR_LEN = 512
+MAX_HDR_LEN = 1024
 
 
 class Handshake(object):
@@ -65,7 +65,11 @@ class Handshake(object):
 
             start_time = time.time()
 
-            while hdr[-4:] != '\r\n\r\n' and len(hdr) < MAX_HDR_LEN:
+            while hdr[-4:] != '\r\n\r\n':
+                if len(hdr) == MAX_HDR_LEN:
+                    raise HandshakeError('request exceeds maximum header '
+                                         'length of %d' % MAX_HDR_LEN)
+
                 hdr += self.sock.recv(1)
 
                 time_diff = time.time() - start_time
