@@ -23,7 +23,7 @@ CLOSE_UNABLE = 1011
 
 
 def printstr(s):
-    return ''.join(c if c in printable else '.' for c in s)
+    return ''.join(c if c in printable else '.' for c in str(s))
 
 
 class Frame(object):
