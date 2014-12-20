@@ -11,10 +11,11 @@ easily set up a web server. Thus, it is both suited for quick server
 programming, as well as for more demanding applications that require low-level
 control over each frame being sent/received.
 
-Her is a quick overview of the features in this library:
+Here is a quick overview of the features in this library:
 - Upgrading regular sockets to web sockets.
-- Building custom frames.
-- Messages, which are higher-level than frames (see "Basic usage").
+- Building custom frames (see "Sending frames with a websocket").
+- Messages, which are higher-level than frames (see "Sending messages with a a
+  connection").
 - Connections, which hide the handling of control frames and automatically
   concatenate fragmented messages to individual payloads.
 - HTTP authentication during handshake.
@@ -24,98 +25,137 @@ Her is a quick overview of the features in this library:
   [deflate-frame](http://tools.ietf.org/html/draft-tyoshino-hybi-websocket-perframe-deflate-06)
   and
   [permessage-deflate](http://tools.ietf.org/html/draft-ietf-hybi-permessage-compression-17).
-- Asynchronous sockets with an EPOLL-based server.
+- Threaded and asynchronous (EPOLL-based) server implementations.
 
 
 Installation
 ============
 
-Use Python's package manager:
+Using Python's package manager (note: this seems to be bugged atm):
 
     easy_install wspy
     pip install wspy
 
+Using Git inside your project:
 
-Basic usage
-===========
-
-- The `websocket` class upgrades a regular socket to a web socket. A
-  `websocket` instance is a single end point of a connection. A `websocket`
-  instance sends and receives frames (`Frame` instances) as opposed to bytes
-  (which are sent/received in a regular socket).
-
-  Server example:
-
-        import wspy, socket
-        sock = wspy.websocket()
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind(('', 8000))
-        sock.listen(5)
-
-        client = sock.accept()
-        client.send(wspy.Frame(wspy.OPCODE_TEXT, 'Hello, Client!'))
-        frame = client.recv()
-
-  Client example:
-
-        import wspy
-        sock = wspy.websocket(location='/my/path')
-        sock.connect(('', 8000))
-        sock.send(wspy.Frame(wspy.OPCODE_TEXT, 'Hello, Server!'))
-
-- A `Connection` instance represents a connection between two end points, based
-  on a `websocket` instance. A connection handles control frames properly, and
-  sends/receives messages (`Message` instances, which are higher-level than
-  frames). Messages are automatically converted to frames, and received frames
-  are converted to messages. Fragmented messages (messages consisting of
-  multiple frames) are also supported.
-
-  Example of an echo server (sends back what it receives):
-
-        import socket
-        import wspy
-
-        class EchoConnection(wspy.Connection):
-            def onopen(self):
-                print 'Connection opened at %s:%d' % self.sock.getpeername()
-
-            def onmessage(self, message):
-                print 'Received message "%s"' % message.payload
-                self.send(wspy.TextMessage(message.payload))
-
-            def onclose(self, code, reason):
-                print 'Connection closed'
-
-        server = wspy.websocket()
-        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.bind(('', 8000))
-        server.listen(5)
-
-        while True:
-            client, addr = server.accept()
-            EchoConnection(client).receive_forever()
-
-  There are two types of messages: `TextMessage`s and `BinaryMessage`s. A
-  `TextMessage` uses frames with opcode `OPCODE_TEXT`, and encodes its payload
-  using UTF-8 encoding. A `BinaryMessage` just sends its payload as raw data.
-  I recommend using `TextMessage` by default, and `BinaryMessage` only when
-  necessary.
-
-  **Note:** For browser clients, you will probably want to use JSON encoding.
-  This could, for example, be implemented as follows:
-
-        import wspy, json
-
-        def msg(**data):
-            return wspy.TextMessage(json.dumps(data))
-
-        # create some connection `conn`...
-
-        conn.send(msg(foo='Hello, World!'))
+    git submodule add https://github.com/taddeus/wspy.git
 
 
-Built-in servers
-================
+Getting Started
+===============
+
+The following example is an echo server (sends back what it receives) and can
+be used out of the box to connect with a browser. The API is similar to that of
+web sockets in JavaScript:
+
+    import logging
+    import wspy
+
+    class EchoServer(wspy.AsyncServer):
+        def onopen(self, client):
+            print 'Client %s connected' % client
+
+        def onmessage(self, client, message):
+            print 'Received message "%s"' % message.payload
+            client.send(wspy.TextMessage(message.payload))
+
+        def onclose(self, client, code, reason):
+            print 'Client %s disconnected' % client
+
+    EchoServer(('', 8000),
+               extensions=[wspy.DeflateMessage(), wspy.DeflateFrame()],
+               loglevel=logging.DEBUG).run()
+
+Corresponding client code (JavaScript, run in browser):
+
+    ws = new WebSocket('ws://localhost:8000');
+    ws.onopen = function() {
+        console.log('open');
+        this.send('Hello, World!');
+    };
+    ws.onmessage = function(e) {
+        console.log('message', e.data);
+    };
+    ws.onerror = function() {
+        console.log('error');
+    };
+    ws.onclose = function(e) {
+        console.log('close', e.code, e.reason);
+    };
+
+
+Sending frames with a websocket
+===============================
+
+The `websocket` class upgrades a regular socket to a web socket. A
+`websocket` instance is a single end point of a connection. A `websocket`
+instance sends and receives frames (`Frame` instances) as opposed to bytes
+(which are sent/received in a regular socket).
+
+Server example:
+
+    import wspy, socket
+    sock = wspy.websocket()
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(('', 8000))
+    sock.listen(5)
+
+    client = sock.accept()
+    client.send(wspy.Frame(wspy.OPCODE_TEXT, 'Hello, Client!'))
+    frame = client.recv()
+
+Client example:
+
+    import wspy
+    sock = wspy.websocket(location='/my/path')
+    sock.connect(('', 8000))
+    sock.send(wspy.Frame(wspy.OPCODE_TEXT, 'Hello, Server!'))
+
+
+Sending messages with a connection
+==================================
+
+A `Connection` instance represents a connection between two end points, based
+on a `websocket` instance. A connection handles control frames properly, and
+sends/receives messages (`Message` instances, which are higher-level than
+frames). Messages are automatically converted to frames, and received frames
+are converted to messages. Fragmented messages (messages consisting of
+multiple frames) are also supported.
+
+Example of an echo server (sends back what it receives):
+
+    import socket
+    import wspy
+
+    class EchoConnection(wspy.Connection):
+        def onopen(self):
+            print 'Connection opened at %s:%d' % self.sock.getpeername()
+
+        def onmessage(self, message):
+            print 'Received message "%s"' % message.payload
+            self.send(wspy.TextMessage(message.payload))
+
+        def onclose(self, code, reason):
+            print 'Connection closed'
+
+    server = wspy.websocket()
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind(('', 8000))
+    server.listen(5)
+
+    while True:
+        client, addr = server.accept()
+        EchoConnection(client).receive_forever()
+
+There are two types of messages: `TextMessage`s and `BinaryMessage`s. A
+`TextMessage` uses frames with opcode `OPCODE_TEXT`, and encodes its payload
+using UTF-8 encoding. A `BinaryMessage` just sends its payload as raw data.
+I recommend using `TextMessage` by default, and `BinaryMessage` only when
+necessary.
+
+
+Managing connections with a server
+==================================
 
 Threaded
 --------
@@ -131,26 +171,26 @@ also receive an additional `client` argument. The client argumetn is a modified
 
 For example, the `EchoConnection` example above can be rewritten to:
 
-      import wspy
+    import wspy
 
-      class EchoServer(wspy.Server):
-          def onopen(self, client):
-              print 'Client %s connected' % client
+    class EchoServer(wspy.Server):
+        def onopen(self, client):
+            print 'Client %s connected' % client
 
-          def onmessage(self, client, message):
-              print 'Received message "%s"' % message.payload
-              client.send(wspy.TextMessage(message.payload))
+        def onmessage(self, client, message):
+            print 'Received message "%s"' % message.payload
+            client.send(wspy.TextMessage(message.payload))
 
-          def onclose(self, client, code, reason):
-              print 'Client %s disconnected' % client
+        def onclose(self, client, code, reason):
+            print 'Client %s disconnected' % client
 
-      EchoServer(('', 8000)).run()
+    EchoServer(('', 8000)).run()
 
 The server can be stopped by typing CTRL-C in the command line. The
 `KeyboardInterrupt` raised when this happens is caught by the server.
 
-Asynchronous
-------------
+Asynchronous (recommended)
+--------------------------
 
 The `AsyncServer` class has the same API as `Server`, but uses
 [EPOLL](https://docs.python.org/2/library/select.html#epoll-objects) instead of
@@ -162,5 +202,11 @@ blocking, use the server's `onmessage` callback instead).
 
 Extensions
 ==========
+
+TODO
+
+
+Secure sockets with SSL
+=======================
 
 TODO
