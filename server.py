@@ -32,7 +32,7 @@ class Server(object):
     """
 
     def __init__(self, address, loglevel=logging.INFO, ssl_args=None,
-                 max_join_time=2.0, **kwargs):
+                 max_join_time=2.0, backlog_size=32, **kwargs):
         """
         Constructor for a simple web socket server.
 
@@ -53,6 +53,8 @@ class Server(object):
 
         `max_join_time` is the maximum time (in seconds) to wait for client
         responses after sending CLOSE frames, it defaults to 2 seconds.
+
+        `backlog_size` is directly passed to `websocket.listen`.
         """
         logging.basicConfig(level=loglevel,
                 format='%(asctime)s: %(levelname)s: %(message)s',
@@ -69,14 +71,14 @@ class Server(object):
             self.sock.enable_ssl(server_side=True, **ssl_args)
 
         self.sock.bind(address)
-        self.sock.listen(5)
-
-        self.clients = []
-        self.client_threads = []
+        self.sock.listen(backlog_size)
 
         self.max_join_time = max_join_time
 
     def run(self):
+        self.clients = []
+        self.client_threads = []
+
         while True:
             try:
                 sock, address = self.sock.accept()
@@ -134,30 +136,22 @@ class Server(object):
         self.onclose(client, code, reason)
 
     def onopen(self, client):
-        logging.debug('Opened socket to %s', client)
+        return NotImplemented
 
     def onmessage(self, client, message):
-        logging.debug('Received %s from %s', message, client)
+        return NotImplemented
 
     def onping(self, client, payload):
-        logging.debug('Sent ping "%s" to %s', payload, client)
+        return NotImplemented
 
     def onpong(self, client, payload):
-        logging.debug('Received pong "%s" from %s', payload, client)
+        return NotImplemented
 
     def onclose(self, client, code, reason):
-        msg = 'Closed socket to %s' % client
-
-        if code is not None:
-            msg += ' [%d]' % code
-
-        if len(reason):
-            msg += ': ' + reason
-
-        logging.debug(msg)
+        return NotImplemented
 
     def onerror(self, client, e):
-        logging.error(format_exc(e))
+        return NotImplemented
 
 
 class Client(Connection):
@@ -176,21 +170,32 @@ class Client(Connection):
         Connection.send(self, message, fragment_size=fragment_size, mask=mask)
 
     def onopen(self):
+        logging.debug('Opened socket to %s', self)
         self.server.onopen(self)
 
     def onmessage(self, message):
+        logging.debug('Received %s from %s', message, self)
         self.server.onmessage(self, message)
 
     def onping(self, payload):
+        logging.debug('Sent ping "%s" to %s', payload, self)
         self.server.onping(self, payload)
 
     def onpong(self, payload):
+        logging.debug('Received pong "%s" from %s', payload, self)
         self.server.onpong(self, payload)
 
     def onclose(self, code, reason):
+        msg = 'Closed socket to %s' % self
+
+        if code is not None:
+            msg += ': [%d] %s' % (code, reason)
+
+        logging.debug(msg)
         self.server.remove_client(self, code, reason)
 
     def onerror(self, e):
+        logging.error(format_exc(e))
         self.server.onerror(self, e)
 
 

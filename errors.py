@@ -1,11 +1,15 @@
 class SocketClosed(Exception):
-    def __init__(self, code=None, reason=''):
-        self.code = code
-        self.reason = reason
+    def __init__(self, initialized):
+        self.initialized = initialized
 
     @property
     def message(self):
-        return ('' if self.code is None else '[%d] ' % self.code) + self.reason
+        s = 'socket closed'
+
+        if self.initialized:
+            s += ' (initialized)'
+
+        return s
 
 
 class HandshakeError(Exception):

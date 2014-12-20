@@ -22,6 +22,7 @@ Her is a quick overview of the features in this library:
 - Secure sockets using SSL certificates (for 'wss://...' URLs).
 - The possibility to add extensions to the web socket protocol. An included
   implementation is [deflate-frame](http://tools.ietf.org/html/draft-tyoshino-hybi-websocket-perframe-deflate-06).
+- Asynchronous sockets with an EPOLL-based server.
 
 
 Installation

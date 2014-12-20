@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import sys
+import ssl
 from os.path import abspath, dirname
 
 basepath = abspath(dirname(abspath(__file__)) + '/..')
@@ -20,7 +21,7 @@ class EchoClient(Connection):
 
     def onmessage(self, msg):
         print 'Received', msg
-        raise SocketClosed(None, 'response received')
+        self.close(None, 'response received')
 
     def onerror(self, e):
         print 'Error:', e
@@ -29,8 +30,15 @@ class EchoClient(Connection):
         print 'Connection closed'
 
 
+secure = True
+
 if __name__ == '__main__':
-    print 'Connecting to ws://%s:%d' % ADDR
+    scheme = 'wss' if secure else 'ws'
+    print 'Connecting to %s://%s' % (scheme, '%s:%d' % ADDR)
     sock = websocket()
+
+    if secure:
+        sock.enable_ssl(ca_certs='cert.pem', cert_reqs=ssl.CERT_REQUIRED)
+
     sock.connect(ADDR)
     EchoClient(sock).receive_forever()

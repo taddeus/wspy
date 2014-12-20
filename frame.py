@@ -21,9 +21,11 @@ CLOSE_MESSAGE_TOOBIG = 1009
 CLOSE_MISSING_EXTENSIONS = 1010
 CLOSE_UNABLE = 1011
 
+line_printable = [c for c in printable if c not in '\r\n\x0b\x0c']
+
 
 def printstr(s):
-    return ''.join(c if c in printable else '.' for c in s)
+    return ''.join(c if c in line_printable else '.' for c in str(s))
 
 
 class Frame(object):
@@ -154,7 +156,18 @@ class Frame(object):
         if len(self.payload) > max_pl_disp:
             pl += '...'
 
-        return s + ' payload=%s>' % pl
+        s += ' payload=%s' % pl
+
+        if self.rsv1:
+            s += ' rsv1'
+
+        if self.rsv2:
+            s += ' rsv2'
+
+        if self.rsv3:
+            s += ' rsv3'
+
+        return s + '>'
 
 
 class ControlFrame(Frame):
@@ -194,12 +207,8 @@ class ControlFrame(Frame):
         return code, reason
 
 
-def receive_frame(sock):
-    """
-    Receive a single frame on socket `sock`. The frame scheme is explained in
-    the docs of Frame.pack().
-    """
-    b1, b2 = struct.unpack('!BB', recvn(sock, 2))
+def decode_frame(reader):
+    b1, b2 = struct.unpack('!BB', reader.readn(2))
 
     final = bool(b1 & 0x80)
     rsv1 = bool(b1 & 0x40)
@@ -211,16 +220,16 @@ def receive_frame(sock):
     payload_len = b2 & 0x7F
 
     if payload_len == 126:
-        payload_len = struct.unpack('!H', recvn(sock, 2))
+        payload_len = struct.unpack('!H', reader.readn(2))
     elif payload_len == 127:
-        payload_len = struct.unpack('!Q', recvn(sock, 8))
+        payload_len = struct.unpack('!Q', reader.readn(8))
 
     if masked:
-        masking_key = recvn(sock, 4)
-        payload = mask(masking_key, recvn(sock, payload_len))
+        masking_key = reader.readn(4)
+        payload = mask(masking_key, reader.readn(payload_len))
     else:
         masking_key = ''
-        payload = recvn(sock, payload_len)
+        payload = reader.readn(payload_len)
 
     # Control frames have most significant bit 1
     cls = ControlFrame if opcode & 0x8 else Frame
@@ -229,21 +238,77 @@ def receive_frame(sock):
                rsv1=rsv1, rsv2=rsv2, rsv3=rsv3)
 
 
-def recvn(sock, n):
+def receive_frame(sock):
+    return decode_frame(SocketReader(sock))
+
+
+def read_frame(data):
+    reader = BufferReader(data)
+    frame = decode_frame(reader)
+    return frame, reader.offset
+
+
+def pop_frame(data):
+    frame, size = read_frame(data)
+    return frame, data[size:]
+
+
+class BufferReader(object):
+    def __init__(self, data):
+        self.data = data
+        self.offset = 0
+
+    def readn(self, n):
+        assert len(self.data) - self.offset >= n
+        self.offset += n
+        return self.data[self.offset - n:self.offset]
+
+
+class SocketReader(object):
+    def __init__(self, sock):
+        self.sock = sock
+
+    def readn(self, n):
+        """
+        Keep receiving data until exactly `n` bytes have been read.
+        """
+        data = ''
+
+        while len(data) < n:
+            received = self.sock.recv(n - len(data))
+
+            if not len(received):
+                raise socket.error('no data read from socket')
+
+            data += received
+
+        return data
+
+
+def contains_frame(data):
     """
-    Keep receiving data from `sock` until exactly `n` bytes have been read.
+    Read the frame length from the start of `data` and check if the data is
+    long enough to contain the entire frame.
     """
-    data = ''
+    if len(data) < 2:
+        return False
 
-    while len(data) < n:
-        received = sock.recv(n - len(data))
+    b2 = struct.unpack('!B', data[1])[0]
+    payload_len = b2 & 0x7F
+    payload_start = 2
 
-        if not len(received):
-            raise socket.error('no data read from socket')
+    if payload_len == 126:
+        if len(data) > 4:
+            payload_len = struct.unpack('!H', data[2:4])
 
-        data += received
+        payload_start = 4
+    elif payload_len == 127:
+        if len(data) > 12:
+            payload_len = struct.unpack('!Q', data[4:12])
 
-    return data
+        payload_start = 12
+
+    return len(data) >= payload_len + payload_start
 
 
 def mask(key, original):
@@ -265,3 +330,8 @@ def mask(key, original):
         masked[i] ^= key[i % 4]
 
     return masked
+
+
+def create_close_frame(code, reason):
+    payload = '' if code is None else struct.pack('!H', code) + reason
+    return ControlFrame(OPCODE_CLOSE, payload)

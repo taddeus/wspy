@@ -1,8 +1,7 @@
-import struct
 import socket
 
 from frame import ControlFrame, OPCODE_CLOSE, OPCODE_PING, OPCODE_PONG, \
-                  OPCODE_CONTINUATION
+                  OPCODE_CONTINUATION, create_close_frame
 from message import create_message
 from errors import SocketClosed, PingError
 
@@ -54,19 +53,30 @@ class Connection(object):
 
         self.onopen()
 
+    def message_to_frames(self, message, fragment_size=None, mask=False):
+        for hook in self.hooks_send:
+            message = hook(message)
+
+        if fragment_size is None:
+            yield message.frame(mask=mask)
+        else:
+            for frame in message.fragment(fragment_size, mask=mask):
+                yield frame
+
     def send(self, message, fragment_size=None, mask=False):
         """
         Send a message. If `fragment_size` is specified, the message is
         fragmented into multiple frames whose payload size does not extend
         `fragment_size`.
         """
-        for hook in self.hooks_send:
-            message = hook(message)
+        for frame in self.message_to_frames(message, fragment_size, mask):
+            self.send_frame(frame)
 
-        if fragment_size is None:
-            self.sock.send(message.frame(mask=mask))
-        else:
-            self.sock.send(*message.fragment(fragment_size, mask=mask))
+    def send_frame(self, frame, callback=None):
+        self.sock.send(frame)
+
+        if callback:
+            callback()
 
     def recv(self):
         """
@@ -82,12 +92,15 @@ class Connection(object):
 
             if isinstance(frame, ControlFrame):
                 self.handle_control_frame(frame)
-            elif len(fragments) and frame.opcode != OPCODE_CONTINUATION:
+            elif len(fragments) > 0 and frame.opcode != OPCODE_CONTINUATION:
                 raise ValueError('expected continuation/control frame, got %s '
                                  'instead' % frame)
             else:
                 fragments.append(frame)
 
+        return self.concat_fragments(fragments)
+
+    def concat_fragments(self, fragments):
         payload = bytearray()
 
         for f in fragments:
@@ -105,16 +118,20 @@ class Connection(object):
         Handle a control frame as defined by RFC 6455.
         """
         if frame.opcode == OPCODE_CLOSE:
-            # Close the connection from this end as well
             self.close_frame_received = True
             code, reason = frame.unpack_close()
 
-            # No more receiving data after a close message
-            raise SocketClosed(code, reason)
+            if self.close_frame_sent:
+                self.onclose(code, reason)
+                self.sock.close()
+                raise SocketClosed(True)
+            else:
+                self.close_params = (code, reason)
+                self.send_close_frame(code, reason)
 
         elif frame.opcode == OPCODE_PING:
             # Respond with a pong message with identical payload
-            self.sock.send(ControlFrame(OPCODE_PONG, frame.payload))
+            self.send_frame(ControlFrame(OPCODE_PONG, frame.payload))
 
         elif frame.opcode == OPCODE_PONG:
             # Assert that the PONG payload is identical to that of the PING
@@ -138,38 +155,40 @@ class Connection(object):
         while True:
             try:
                 self.onmessage(self.recv())
-            except SocketClosed as e:
-                self.close(e.code, e.reason)
+            except (KeyboardInterrupt, SystemExit, SocketClosed):
                 break
-            except socket.error as e:
+            except Exception as e:
                 self.onerror(e)
+                self.onclose(None, 'error: %s' % e)
 
                 try:
                     self.sock.close()
                 except socket.error:
                     pass
 
-                self.onclose(None, '')
-                break
-            except Exception as e:
-                self.onerror(e)
+                raise e
 
     def send_ping(self, payload=''):
         """
         Send a PING control frame with an optional payload.
         """
-        self.sock.send(ControlFrame(OPCODE_PING, payload))
+        self.send_frame(ControlFrame(OPCODE_PING, payload),
+                        lambda: self.onping(payload))
         self.ping_payload = payload
         self.ping_sent = True
-        self.onping(payload)
 
-    def send_close_frame(self, code=None, reason=''):
-        """
-        Send a CLOSE control frame.
-        """
-        payload = '' if code is None else struct.pack('!H', code) + reason
-        self.sock.send(ControlFrame(OPCODE_CLOSE, payload))
+    def send_close_frame(self, code, reason):
+        self.send_frame(create_close_frame(code, reason))
         self.close_frame_sent = True
+        self.shutdown_write()
+
+    def shutdown_write(self):
+        if self.close_frame_received:
+            self.onclose(*self.close_params)
+            self.sock.close()
+            raise SocketClosed(False)
+        else:
+            self.sock.shutdown(socket.SHUT_WR)
 
     def close(self, code=None, reason=''):
         """
@@ -179,28 +198,14 @@ class Connection(object):
         called after the response has been received, but before the socket is
         actually closed.
         """
-        # Send CLOSE frame
-        if not self.close_frame_sent:
-            self.send_close_frame(code, reason)
+        self.send_close_frame(code, reason)
 
-        # Receive CLOSE frame
-        if not self.close_frame_received:
-            frame = self.sock.recv()
+        frame = self.sock.recv()
 
-            if frame.opcode != OPCODE_CLOSE:
-                raise ValueError('expected CLOSE frame, got %s' % frame)
+        if frame.opcode != OPCODE_CLOSE:
+            raise ValueError('expected CLOSE frame, got %s' % frame)
 
-            self.close_frame_received = True
-            res_code, res_reason = frame.unpack_close()
-
-            # FIXME: check if res_code == code and res_reason == reason?
-
-            # FIXME: alternatively, keep receiving frames in a loop until a
-            # CLOSE frame is received, so that a fragmented chain may arrive
-            # fully first
-
-        self.onclose(code, reason)
-        self.sock.close()
+        self.handle_control_frame(frame)
 
     def add_hook(self, send=None, recv=None, prepend=False):
         """
