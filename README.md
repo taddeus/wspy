@@ -68,7 +68,7 @@ web sockets in JavaScript:
 
 Corresponding client code (JavaScript, run in browser):
 
-    ws = new WebSocket('ws://localhost:8000');
+    var ws = new WebSocket('ws://localhost:8000');
     ws.onopen = function() {
         console.log('open');
         this.send('Hello, World!');
