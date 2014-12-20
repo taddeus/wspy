@@ -38,7 +38,7 @@ class AsyncConnection(Connection):
         for frame in frames[:-1]:
             self.sock.queue_send(frame)
 
-        self.sock.queue_send(frames[-1], lambda: self.onsend(message))
+        self.sock.queue_send(frames[-1], lambda: self.onsent(message))
 
     def send_frame(self, frame, callback):
         self.sock.queue_send(frame, callback)
@@ -79,7 +79,7 @@ class AsyncConnection(Connection):
         self.ping_payload = payload
         self.ping_sent = True
 
-    def onsend(self, message):
+    def onsent(self, message):
         """
         Called after a message has been written.
         """
@@ -165,7 +165,7 @@ class AsyncServer(Server):
 
         self.epoll.modify(conn.sock.fileno(), mask)
 
-    def onsend(self, client, message):
+    def onsent(self, client, message):
         return NotImplemented
 
 
@@ -179,9 +179,9 @@ class AsyncClient(Client, AsyncConnection):
         AsyncConnection.send(self, message, fragment_size, mask)
         self.server.update_mask(self)
 
-    def onsend(self, message):
+    def onsent(self, message):
         logging.debug('Finished sending %s to %s', message, self)
-        self.server.onsend(self, message)
+        self.server.onsent(self, message)
 
 
 if __name__ == '__main__':

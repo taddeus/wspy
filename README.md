@@ -166,7 +166,7 @@ handles client crashes properly. By default, a `Server` instance only logs
 every event using Python's `logging` module. To create a custom server, The
 `Server` class should be extended and its event handlers overwritten. The event
 handlers are named identically to the `Connection` event handlers, but they
-also receive an additional `client` argument. The client argumetn is a modified
+also receive an additional `client` argument. The client argument is a modified
 `Connection` instance, so you can invoke `send()` and `recv()`.
 
 For example, the `EchoConnection` example above can be rewritten to:
@@ -187,7 +187,16 @@ For example, the `EchoConnection` example above can be rewritten to:
     EchoServer(('', 8000)).run()
 
 The server can be stopped by typing CTRL-C in the command line. The
-`KeyboardInterrupt` raised when this happens is caught by the server.
+`KeyboardInterrupt` raised when this happens is caught by the server, making it
+exit gracefully.
+
+The full list of overwritable methods is: `onopen`, `onmessage`, `onclose`,
+`onerror`, `onping`, `onpong`.
+
+The server uses Python's built-in
+[logging](https://docs.python.org/2/library/logging.html) module for logging.
+Try passing the argument `loglevel=logging.DEBUG` to the server constructor if
+you are having trouble debugging.
 
 Asynchronous (recommended)
 --------------------------
@@ -198,6 +207,12 @@ threads. This means that when you send a message, it is put into a queue to be
 sent later when the socket is ready. The client argument is again a modified
 `Connection` instance, with a non-blocking `send()` method (`recv` is still
 blocking, use the server's `onmessage` callback instead).
+
+The asynchronous server has one additional method which you can implement:
+`AsyncServer.onsent(self, client, message)`, which is called after a message
+has completely been written to the socket. You will probably not need this
+unless you are doing something advanced or have to clear a buffer in a
+high-performance application.
 
 
 Extensions
