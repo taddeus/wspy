@@ -21,9 +21,11 @@ CLOSE_MESSAGE_TOOBIG = 1009
 CLOSE_MISSING_EXTENSIONS = 1010
 CLOSE_UNABLE = 1011
 
+line_printable = [c for c in printable if c not in '\r\n\x0b\x0c']
+
 
 def printstr(s):
-    return ''.join(c if c in printable else '.' for c in str(s))
+    return ''.join(c if c in line_printable else '.' for c in str(s))
 
 
 class Frame(object):
@@ -154,7 +156,18 @@ class Frame(object):
         if len(self.payload) > max_pl_disp:
             pl += '...'
 
-        return s + ' payload=%s>' % pl
+        s += ' payload=%s' % pl
+
+        if self.rsv1:
+            s += ' rsv1'
+
+        if self.rsv2:
+            s += ' rsv2'
+
+        if self.rsv3:
+            s += ' rsv3'
+
+        return s + '>'
 
 
 class ControlFrame(Frame):
