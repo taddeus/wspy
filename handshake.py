@@ -212,7 +212,7 @@ class ServerHandshake(Handshake):
         location = '%s://%s%s' % (scheme, host, self.wsock.location)
 
         # Construct HTTP response header
-        yield 'HTTP/1.1 101 Web Socket Protocol Handshake'
+        yield 'HTTP/1.1 101 Switching Protocols'
         yield 'Upgrade', 'websocket'
         yield 'Connection', 'Upgrade'
         yield 'Sec-WebSocket-Origin', origin
