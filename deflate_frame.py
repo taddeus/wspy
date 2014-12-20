@@ -59,7 +59,6 @@ class DeflateFrame(Extension):
 
         def deflate(self, frame):
             if self.no_context_takeover:
-                print 'no_context_takeover'
                 compressed = zlib.compress(frame.payload)
             else:
                 compressed = self.defl.compress(frame.payload)
