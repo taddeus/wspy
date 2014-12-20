@@ -155,7 +155,7 @@ Asynchronous
 The `AsyncServer` class has the same API as `Server`, but uses
 [EPOLL](https://docs.python.org/2/library/select.html#epoll-objects) instead of
 threads. This means that when you send a message, it is put into a queue to be
-sent later when the socket is ready. The client argument is againa modified
+sent later when the socket is ready. The client argument is again a modified
 `Connection` instance, with a non-blocking `send()` method (`recv` is still
 blocking, use the server's `onmessage` callback instead).
 
