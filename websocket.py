@@ -81,7 +81,7 @@ class websocket(object):
         """
         self.protocols = protocols
         self.extensions = extensions
-        self.extension_hooks = []
+        self.extension_instances = []
         self.origin = origin
         self.location = location
         self.trusted_origins = trusted_origins
@@ -98,9 +98,6 @@ class websocket(object):
         self.recv_callback = recv_callback
 
         self.sock = sock or socket.socket(sfamily, socket.SOCK_STREAM, sproto)
-
-    def set_extensions(self, extensions):
-        self.extensions = [ext.Hook() for ext in extensions]
 
     def __getattr__(self, name):
         if name in INHERITED_ATTRS:
@@ -135,14 +132,20 @@ class websocket(object):
         self.handshake_sent = True
 
     def apply_send_hooks(self, frame):
-        for hook in self.extension_hooks:
-            frame = hook.send(frame)
+        for inst in self.extension_instances:
+            replacement = inst.onsend_frame(frame)
+
+            if replacement is not None:
+                frame = replacement
 
         return frame
 
     def apply_recv_hooks(self, frame):
-        for hook in reversed(self.extension_hooks):
-            frame = hook.recv(frame)
+        for inst in reversed(self.extension_instances):
+            replacement = inst.onrecv_frame(frame)
+
+            if replacement is not None:
+                frame = replacement
 
         return frame
 

@@ -9,7 +9,6 @@ sys.path.insert(0, basepath)
 from websocket import websocket
 from connection import Connection
 from message import TextMessage
-from errors import SocketClosed
 
 ADDR = ('localhost', 8000)
 
@@ -30,9 +29,8 @@ class EchoClient(Connection):
         print 'Connection closed'
 
 
-secure = True
-
 if __name__ == '__main__':
+    secure = '-s' in sys.argv[1:]
     scheme = 'wss' if secure else 'ws'
     print 'Connecting to %s://%s' % (scheme, '%s:%d' % ADDR)
     sock = websocket()

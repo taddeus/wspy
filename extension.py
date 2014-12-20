@@ -3,67 +3,87 @@ class Extension(object):
     rsv1 = False
     rsv2 = False
     rsv3 = False
-    opcodes = []
+    opcodes = ()
     defaults = {}
-    request = {}
 
-    def __init__(self, defaults={}, request={}):
-        for param in defaults.keys() + request.keys():
+    def __init__(self, **kwargs):
+        for param in kwargs.iterkeys():
             if param not in self.defaults:
                 raise KeyError('unrecognized parameter "%s"' % param)
 
         # Copy dict first to avoid duplicate references to the same object
         self.defaults = dict(self.__class__.defaults)
-        self.defaults.update(defaults)
-
-        self.request = dict(self.__class__.request)
-        self.request.update(request)
-
-        self.init()
+        self.defaults.update(kwargs)
 
     def __str__(self):
         return '<Extension "%s" defaults=%s request=%s>' \
                % (self.name, self.defaults, self.request)
 
-    def init(self):
-        return NotImplemented
+    @property
+    def names(self):
+        return (self.name,) if self.name else ()
 
-    def create_hook(self, **kwargs):
-        params = {}
-        params.update(self.defaults)
-        params.update(kwargs)
-        hook = self.Hook(**params)
-        hook.init(self)
-        return hook
+    def conflicts(self, ext):
+        """
+        Check if the extension conflicts with an already accepted extension.
+        This may be the case when the two extensions use the same reserved
+        bits, or have the same name (when the same extension is negotiated
+        multiple times with different parameters).
+        """
+        return ext.rsv1 and self.rsv1 \
+            or ext.rsv2 and self.rsv2 \
+            or ext.rsv3 and self.rsv3 \
+            or set(ext.names) & set(self.names) \
+            or set(ext.opcodes) & set(self.opcodes)
 
-    class Hook:
-        def __init__(self, **kwargs):
-            for param, value in kwargs.iteritems():
+    def negotiate(self, name, params):
+        """
+        Same as `negotiate_safe`, but instead returns an iterator of (param,
+        value) tuples and raises an exception on error.
+        """
+        raise NotImplementedError
+
+    def negotiate_safe(self, name, params):
+        """
+        `name` and `params` are sent in the HTTP request by the client. Check
+        if the extension name is supported by this extension, and validate the
+        parameters. Returns a dict with accepted parameters, or None if not
+        accepted.
+        """
+        for param in params.iterkeys():
+            if param not in self.defaults:
+                return
+
+        try:
+            return dict(self.negotiate(name, params))
+        except (KeyError, ValueError, AssertionError):
+            pass
+
+    class Instance:
+        def __init__(self, extension, name, params):
+            self.extension = extension
+            self.name = name
+            self.params = params
+
+            for param, value in extension.defaults.iteritems():
                 setattr(self, param, value)
 
-        def init(self, extension):
+            for param, value in params.iteritems():
+                setattr(self, param, value)
+
+            self.init()
+
+        def init(self):
             return NotImplemented
 
-        def send(self, frame):
-            return frame
+        def onsend_frame(self, frame):
+            pass
 
-        def recv(self, frame):
-            return frame
+        def onrecv_frame(self, frame):
+            pass
 
+        def onsend_message(self, message):
+            pass
 
-def extension_conflicts(ext, existing):
-    rsv1_reserved = False
-    rsv2_reserved = False
-    rsv3_reserved = False
-    reserved_opcodes = []
-
-    for e in existing:
-        rsv1_reserved |= e.rsv1
-        rsv2_reserved |= e.rsv2
-        rsv3_reserved |= e.rsv3
-        reserved_opcodes.extend(e.opcodes)
-
-    return ext.rsv1 and rsv1_reserved \
-            or ext.rsv2 and rsv2_reserved \
-            or ext.rsv3 and rsv3_reserved \
-            or len(set(ext.opcodes) & set(reserved_opcodes))
+        def onrecv_message(self, message):
+            pass

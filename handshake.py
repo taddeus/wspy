@@ -7,7 +7,6 @@ from hashlib import sha1
 from urlparse import urlparse
 
 from errors import HandshakeError
-from extension import extension_conflicts
 from python_digest import build_authorization_request
 
 
@@ -172,20 +171,19 @@ class ServerHandshake(Handshake):
 
         # Only supported extensions are returned
         if 'Sec-WebSocket-Extensions' in headers:
-            supported_ext = dict((e.name, e) for e in ssock.extensions)
-            self.wsock.extension_hooks = []
-            extensions = []
+            self.wsock.extension_instances = []
 
-            for ext in split_stripped(headers['Sec-WebSocket-Extensions']):
-                name, params = parse_param_hdr(ext)
+            for hdr in split_stripped(headers['Sec-WebSocket-Extensions']):
+                name, params = parse_param_hdr(hdr)
 
-                if name in supported_ext:
-                    ext = supported_ext[name]
+                for ext in ssock.extensions:
+                    if not any(ext.conflicts(other.extension)
+                               for other in self.wsock.extension_instances):
+                        accept_params = ext.negotiate_safe(name, params)
 
-                    if not extension_conflicts(ext, extensions):
-                        extensions.append(ext)
-                        hook = ext.create_hook(**params)
-                        self.wsock.extension_hooks.append(hook)
+                        if accept_params is not None:
+                            instance = ext.Instance(ext, name, accept_params)
+                            self.wsock.extension_instances.append(instance)
 
         # Check if requested resource location is served by this server
         if ssock.locations:
@@ -222,9 +220,9 @@ class ServerHandshake(Handshake):
         if self.wsock.protocol:
             yield 'Sec-WebSocket-Protocol', self.wsock.protocol
 
-        if self.wsock.extensions:
-            values = [format_param_hdr(e.name, e.request)
-                      for e in self.wsock.extensions]
+        if self.wsock.extension_instances:
+            values = [format_param_hdr(i.name, i.params)
+                      for i in self.wsock.extension_instances]
             yield 'Sec-WebSocket-Extensions', ', '.join(values)
 
 
@@ -273,18 +271,22 @@ class ClientHandshake(Handshake):
 
         # Compare extensions, add hooks only for those returned by server
         if 'Sec-WebSocket-Extensions' in headers:
-            supported_ext = dict((e.name, e) for e in self.wsock.extensions)
-            self.wsock.extension_hooks = []
+            # FIXME: there is no distinction between server/client extension
+            # instances, while the extension instance may assume it belongs to
+            # a server, leading to undefined behavior
+            self.wsock.extension_instances = []
 
-            for ext in split_stripped(headers['Sec-WebSocket-Extensions']):
-                name, params = parse_param_hdr(ext)
+            for hdr in split_stripped(headers['Sec-WebSocket-Extensions']):
+                name, accept_params = parse_param_hdr(hdr)
 
-                if name not in supported_ext:
+                for ext in self.wsock.extensions:
+                    if name in ext.names:
+                        instance = ext.Instance(ext, name, accept_params)
+                        self.wsock.extension_instances.append(instance)
+                        break
+                else:
                     raise HandshakeError('server handshake contains '
                                          'unsupported extension "%s"' % name)
-
-                hook = supported_ext[name].create_hook(**params)
-                self.wsock.extension_hooks.append(hook)
 
         # Assert that returned protocol (if any) is supported
         if 'Sec-WebSocket-Protocol' in headers:

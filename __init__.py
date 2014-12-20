@@ -10,5 +10,5 @@ from connection import Connection
 from message import Message, TextMessage, BinaryMessage
 from errors import SocketClosed, HandshakeError, PingError, SSLError
 from extension import Extension
-from deflate_frame import DeflateFrame, WebkitDeflateFrame
+from deflate_frame import DeflateFrame
 from async import AsyncConnection, AsyncServer

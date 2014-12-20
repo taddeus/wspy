@@ -17,40 +17,39 @@ class DeflateFrame(Extension):
     Note that the deflate and inflate hooks modify the RSV1 bit and payload of
     existing `Frame` objects.
     """
-
-    name = 'deflate-frame'
+    names = ('deflate-frame', 'x-webkit-deflate-frame')
     rsv1 = True
-    defaults = {'max_window_bits': zlib.MAX_WBITS, 'no_context_takeover': False}
+    defaults = {
+        'max_window_bits': zlib.MAX_WBITS,
+        'no_context_takeover': False
+    }
 
-    COMPRESSION_THRESHOLD = 64  # minimal payload size for compression
+    compression_threshold = 64  # minimal payload size for compression
 
-    def init(self):
-        mwb = self.defaults['max_window_bits']
-        cto = self.defaults['no_context_takeover']
+    def negotiate(self, name, params):
+        if 'max_window_bits' in params:
+            mwb = int(params['max_window_bits'])
+            assert 8 <= mwb <= zlib.MAX_WBITS
+            yield 'max_window_bits', mwb
 
-        if not isinstance(mwb, int) or mwb < 1 or mwb > zlib.MAX_WBITS:
-            raise ValueError('"max_window_bits" must be in range 1-15')
+        if 'no_context_takeover' in params:
+            assert params['no_context_takeover'] is True
+            yield 'no_context_takeover', True
 
-        if cto is not False and cto is not True:
-            raise ValueError('"no_context_takeover" must have no value')
+    class Instance(Extension.Instance):
+        def init(self):
+            if not self.no_context_takeover:
+                self.defl = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
+                        zlib.DEFLATED, -self.max_window_bits)
+                self.dec = zlib.decompressobj(-self.max_window_bits)
 
-    class Hook(Extension.Hook):
-        def init(self, extension):
-            self.defl = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
-                                         zlib.DEFLATED, -self.max_window_bits)
-            other_wbits = extension.request.get('max_window_bits', zlib.MAX_WBITS)
-            self.dec = zlib.decompressobj(-other_wbits)
-
-        def send(self, frame):
-            # FIXME: this does not seem to work properly on Android
+        def onsend_frame(self, frame):
             if not frame.rsv1 and not isinstance(frame, ControlFrame) and \
-                   len(frame.payload) > DeflateFrame.COMPRESSION_THRESHOLD:
+                   len(frame.payload) > self.extension.compression_threshold:
                 frame.rsv1 = True
                 frame.payload = self.deflate(frame)
 
-            return frame
-
-        def recv(self, frame):
+        def onrecv_frame(self, frame):
             if frame.rsv1:
                 if isinstance(frame, ControlFrame):
                     raise ValueError('received compressed control frame')
@@ -58,26 +57,22 @@ class DeflateFrame(Extension):
                 frame.rsv1 = False
                 frame.payload = self.inflate(frame.payload)
 
-            return frame
-
         def deflate(self, frame):
-            compressed = self.defl.compress(frame.payload)
-
-            if frame.final or self.no_context_takeover:
-                compressed += self.defl.flush(zlib.Z_FINISH) + '\x00'
-                self.defl = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
-                        zlib.DEFLATED, -self.max_window_bits)
+            if self.no_context_takeover:
+                print 'no_context_takeover'
+                compressed = zlib.compress(frame.payload)
             else:
+                compressed = self.defl.compress(frame.payload)
                 compressed += self.defl.flush(zlib.Z_SYNC_FLUSH)
-                assert compressed[-4:] == '\x00\x00\xff\xff'
-                compressed = compressed[:-4]
 
-            return compressed
+            assert compressed[-4:] == '\x00\x00\xff\xff'
+            return compressed[:-4]
 
         def inflate(self, data):
-            return self.dec.decompress(data + '\x00\x00\xff\xff') + \
-                   self.dec.flush(zlib.Z_SYNC_FLUSH)
+            data = str(data + '\x00\x00\xff\xff')
 
+            if self.no_context_takeover:
+                dec = zlib.decompressobj(-self.max_window_bits)
+                return dec.decompress(data) + dec.flush()
 
-class WebkitDeflateFrame(DeflateFrame):
-    name = 'x-webkit-deflate-frame'
+            return self.dec.decompress(data)
