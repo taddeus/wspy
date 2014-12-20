@@ -54,14 +54,13 @@ class Connection(object):
         self.onopen()
 
     def message_to_frames(self, message, fragment_size=None, mask=False):
-        for hook in self.hooks_send:
-            message = hook(message)
+        frame = self.sock.apply_send_hooks(message.frame(mask=mask), True)
 
         if fragment_size is None:
-            yield message.frame(mask=mask)
+            yield frame
         else:
-            for frame in message.fragment(fragment_size, mask=mask):
-                yield frame
+            for fragment in frame.fragment(fragment_size):
+                yield fragment
 
     def send(self, message, fragment_size=None, mask=False):
         """
@@ -101,17 +100,14 @@ class Connection(object):
         return self.concat_fragments(fragments)
 
     def concat_fragments(self, fragments):
-        payload = bytearray()
+        frame = fragments[0]
 
-        for f in fragments:
-            payload += f.payload
+        for f in fragments[1:]:
+            frame.payload += f.payload
 
-        message = create_message(fragments[0].opcode, payload)
-
-        for hook in self.hooks_recv:
-            message = hook(message)
-
-        return message
+        frame.final = True
+        frame = self.sock.apply_recv_hooks(frame, True)
+        return create_message(frame.opcode, frame.payload)
 
     def handle_control_frame(self, frame):
         """
@@ -206,36 +202,6 @@ class Connection(object):
             raise ValueError('expected CLOSE frame, got %s' % frame)
 
         self.handle_control_frame(frame)
-
-    def add_hook(self, send=None, recv=None, prepend=False):
-        """
-        Add a pair of send and receive hooks that are called for each frame
-        that is sent or received. A hook is a function that receives a single
-        argument - a Message instance - and returns a `Message` instance as
-        well.
-
-        `prepend` is a flag indicating whether the send hook is prepended to
-        the other send hooks.
-
-        For example, to add an automatic JSON conversion to messages and
-        eliminate the need to contruct TextMessage instances to all messages:
-        >>> import wspy, json
-        >>> conn = Connection(...)
-        >>> conn.add_hook(lambda data: tswpy.TextMessage(json.dumps(data)),
-        >>>               lambda message: json.loads(message.payload))
-        >>> conn.send({'foo': 'bar'})  # Sends text message {"foo":"bar"}
-        >>> conn.recv()                # May be dict(foo='bar')
-
-        Note that here `prepend=True`, so that data passed to `send()` is first
-        encoded and then packed into a frame. Of course, one could also decide
-        to add the base64 hook first, or to return a new `Frame` instance with
-        base64-encoded data.
-        """
-        if send:
-            self.hooks_send.insert(0 if prepend else -1, send)
-
-        if recv:
-            self.hooks_recv.insert(-1 if prepend else 0, recv)
 
     def onopen(self):
         """

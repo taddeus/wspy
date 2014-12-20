@@ -131,21 +131,17 @@ class websocket(object):
         ClientHandshake(self).perform()
         self.handshake_sent = True
 
-    def apply_send_hooks(self, frame):
+    def apply_send_hooks(self, frame, before_fragmentation):
         for inst in self.extension_instances:
-            replacement = inst.onsend_frame(frame)
-
-            if replacement is not None:
-                frame = replacement
+            if inst.extension.before_fragmentation == before_fragmentation:
+                frame = inst.handle_send(frame)
 
         return frame
 
-    def apply_recv_hooks(self, frame):
+    def apply_recv_hooks(self, frame, before_fragmentation):
         for inst in reversed(self.extension_instances):
-            replacement = inst.onrecv_frame(frame)
-
-            if replacement is not None:
-                frame = replacement
+            if inst.extension.before_fragmentation == before_fragmentation:
+                frame = inst.handle_recv(frame)
 
         return frame
 
@@ -154,14 +150,14 @@ class websocket(object):
         Send a number of frames.
         """
         for frame in args:
-            self.sock.sendall(self.apply_send_hooks(frame).pack())
+            self.sock.sendall(self.apply_send_hooks(frame, False).pack())
 
     def recv(self):
         """
         Receive a single frames. This can be either a data frame or a control
         frame.
         """
-        return self.apply_recv_hooks(receive_frame(self.sock))
+        return self.apply_recv_hooks(receive_frame(self.sock), False)
 
     def recvn(self, n):
         """
@@ -177,7 +173,7 @@ class websocket(object):
         frame has been fully written. `recv_callback` is an optional callable
         to quickly set the `recv_callback` attribute to.
         """
-        frame = self.apply_send_hooks(frame)
+        frame = self.apply_send_hooks(frame, False)
         self.sendbuf += frame.pack()
         self.sendbuf_frames.append([frame, len(self.sendbuf), callback])
 
@@ -222,7 +218,7 @@ class websocket(object):
 
         while contains_frame(self.recvbuf):
             frame, self.recvbuf = pop_frame(self.recvbuf)
-            frame = self.apply_recv_hooks(frame)
+            frame = self.apply_recv_hooks(frame, False)
 
             if not self.recv_callback:
                 raise ValueError('no callback installed for %s' % frame)

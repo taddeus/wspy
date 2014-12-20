@@ -24,7 +24,7 @@ class DeflateFrame(Extension):
         'no_context_takeover': False
     }
 
-    compression_threshold = 64  # minimal payload size for compression
+    compression_threshold = 20  # minimal payload size for compression
 
     def negotiate(self, name, params):
         if 'max_window_bits' in params:
@@ -43,13 +43,16 @@ class DeflateFrame(Extension):
                         zlib.DEFLATED, -self.max_window_bits)
                 self.dec = zlib.decompressobj(-self.max_window_bits)
 
-        def onsend_frame(self, frame):
+        def onsend(self, frame):
             if not frame.rsv1 and not isinstance(frame, ControlFrame) and \
                    len(frame.payload) > self.extension.compression_threshold:
-                frame.rsv1 = True
-                frame.payload = self.deflate(frame)
+                deflated = self.deflate(frame.payload)
 
-        def onrecv_frame(self, frame):
+                if len(deflated) < len(frame.payload):
+                    frame.rsv1 = True
+                    frame.payload = deflated
+
+        def onrecv(self, frame):
             if frame.rsv1:
                 if isinstance(frame, ControlFrame):
                     raise ValueError('received compressed control frame')
@@ -57,13 +60,13 @@ class DeflateFrame(Extension):
                 frame.rsv1 = False
                 frame.payload = self.inflate(frame.payload)
 
-        def deflate(self, frame):
+        def deflate(self, data):
             if self.no_context_takeover:
-                compressed = zlib.compress(frame.payload)
-            else:
-                compressed = self.defl.compress(frame.payload)
-                compressed += self.defl.flush(zlib.Z_SYNC_FLUSH)
+                self.defl = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
+                        zlib.DEFLATED, -self.max_window_bits)
 
+            compressed = self.defl.compress(data)
+            compressed += self.defl.flush(zlib.Z_SYNC_FLUSH)
             assert compressed[-4:] == '\x00\x00\xff\xff'
             return compressed[:-4]
 
@@ -71,7 +74,6 @@ class DeflateFrame(Extension):
             data = str(data + '\x00\x00\xff\xff')
 
             if self.no_context_takeover:
-                dec = zlib.decompressobj(-self.max_window_bits)
-                return dec.decompress(data) + dec.flush()
+                self.dec = zlib.decompressobj(-self.max_window_bits)
 
             return self.dec.decompress(data)

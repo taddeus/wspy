@@ -177,8 +177,7 @@ class ServerHandshake(Handshake):
                 name, params = parse_param_hdr(hdr)
 
                 for ext in ssock.extensions:
-                    if not any(ext.conflicts(other.extension)
-                               for other in self.wsock.extension_instances):
+                    if ext.is_supported(name, self.wsock.extension_instances):
                         accept_params = ext.negotiate_safe(name, params)
 
                         if accept_params is not None:
@@ -432,4 +431,4 @@ def format_param_hdr(value, params):
             return k + '=' + str(v)
 
     strparams = filter(None, map(fmt_param, params.items()))
-    return '%s; %s' % (value, ', '.join(strparams))
+    return '; '.join([value] + strparams)

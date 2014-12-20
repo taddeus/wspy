@@ -4,6 +4,7 @@ class Extension(object):
     rsv2 = False
     rsv3 = False
     opcodes = ()
+    before_fragmentation = False
     defaults = {}
 
     def __init__(self, **kwargs):
@@ -22,6 +23,10 @@ class Extension(object):
     @property
     def names(self):
         return (self.name,) if self.name else ()
+
+    def is_supported(self, name, other_instances):
+        return name in self.names and not any(self.conflicts(other.extension)
+                                              for other in other_instances)
 
     def conflicts(self, ext):
         """
@@ -76,14 +81,22 @@ class Extension(object):
         def init(self):
             return NotImplemented
 
-        def onsend_frame(self, frame):
-            pass
+        def handle_send(self, frame):
+            if self.extension.before_fragmentation:
+                assert not frame.is_fragmented()
 
-        def onrecv_frame(self, frame):
-            pass
+            replacement = self.onsend(frame)
+            return frame if replacement is None else replacement
 
-        def onsend_message(self, message):
-            pass
+        def handle_recv(self, frame):
+            if self.extension.before_fragmentation:
+                assert not frame.is_fragmented()
 
-        def onrecv_message(self, message):
-            pass
+            replacement = self.onrecv(frame)
+            return frame if replacement is None else replacement
+
+        def onsend(self, frame):
+            raise NotImplementedError
+
+        def onrecv(self, frame):
+            raise NotImplementedError

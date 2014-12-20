@@ -143,6 +143,9 @@ class Frame(object):
 
         return frames
 
+    def is_fragmented(self):
+        return not self.final or self.opcode == OPCODE_CONTINUATION
+
     def __str__(self):
         s = '<%s opcode=0x%X len=%d' \
             % (self.__class__.__name__, self.opcode, len(self.payload))

@@ -20,8 +20,10 @@ Her is a quick overview of the features in this library:
 - HTTP authentication during handshake.
 - An extendible server implementation.
 - Secure sockets using SSL certificates (for 'wss://...' URLs).
-- The possibility to add extensions to the web socket protocol. An included
-  implementation is [deflate-frame](http://tools.ietf.org/html/draft-tyoshino-hybi-websocket-perframe-deflate-06).
+- An API for implementing WebSocket extensions. Included implementations are
+  [deflate-frame](http://tools.ietf.org/html/draft-tyoshino-hybi-websocket-perframe-deflate-06)
+  and
+  [permessage-deflate](http://tools.ietf.org/html/draft-ietf-hybi-permessage-compression-17).
 - Asynchronous sockets with an EPOLL-based server.
 
 
@@ -112,16 +114,19 @@ Basic usage
         conn.send(msg(foo='Hello, World!'))
 
 
-Built-in Server
-===============
+Built-in servers
+================
 
-The built-in `Server` implementation is very basic. It starts a new thread with
-a `Connection.receive_forever()` loop for each client that connects. It also
+Threaded
+--------
+
+The `Server` class is very basic. It starts a new thread with a
+`Connection.receive_forever()` loop for each client that connects. It also
 handles client crashes properly. By default, a `Server` instance only logs
 every event using Python's `logging` module. To create a custom server, The
 `Server` class should be extended and its event handlers overwritten. The event
 handlers are named identically to the `Connection` event handlers, but they
-also receive an additional `client` argument. This argument is a modified
+also receive an additional `client` argument. The client argumetn is a modified
 `Connection` instance, so you can invoke `send()` and `recv()`.
 
 For example, the `EchoConnection` example above can be rewritten to:
@@ -143,6 +148,16 @@ For example, the `EchoConnection` example above can be rewritten to:
 
 The server can be stopped by typing CTRL-C in the command line. The
 `KeyboardInterrupt` raised when this happens is caught by the server.
+
+Asynchronous
+------------
+
+The `AsyncServer` class has the same API as `Server`, but uses
+[EPOLL](https://docs.python.org/2/library/select.html#epoll-objects) instead of
+threads. This means that when you send a message, it is put into a queue to be
+sent later when the socket is ready. The client argument is againa modified
+`Connection` instance, with a non-blocking `send()` method (`recv` is still
+blocking, use the server's `onmessage` callback instead).
 
 
 Extensions
