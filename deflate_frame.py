@@ -20,38 +20,33 @@ class DeflateFrame(Extension):
 
     name = 'deflate-frame'
     rsv1 = True
-    defaults = {'max_window_bits': 15, 'no_context_takeover': False}
+    defaults = {'max_window_bits': zlib.MAX_WBITS, 'no_context_takeover': False}
 
-    def __init__(self, defaults={}, request={}):
-        Extension.__init__(self, defaults, request)
+    COMPRESSION_THRESHOLD = 64  # minimal payload size for compression
 
+    def init(self):
         mwb = self.defaults['max_window_bits']
         cto = self.defaults['no_context_takeover']
 
-        if not isinstance(mwb, int):
-            raise ValueError('"max_window_bits" must be an integer')
-        elif mwb > 15:
-            raise ValueError('"max_window_bits" may not be larger than 15')
+        if not isinstance(mwb, int) or mwb < 1 or mwb > zlib.MAX_WBITS:
+            raise ValueError('"max_window_bits" must be in range 1-15')
 
         if cto is not False and cto is not True:
             raise ValueError('"no_context_takeover" must have no value')
 
     class Hook(Extension.Hook):
-        def __init__(self, extension, **kwargs):
-            Extension.Hook.__init__(self, extension, **kwargs)
-
-            if not self.no_context_takeover:
-                self.defl = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
-                                            zlib.DEFLATED,
-                                            -self.max_window_bits)
-
-            other_wbits = self.extension.request.get('max_window_bits', 15)
+        def init(self, extension):
+            self.defl = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
+                                         zlib.DEFLATED, -self.max_window_bits)
+            other_wbits = extension.request.get('max_window_bits', zlib.MAX_WBITS)
             self.dec = zlib.decompressobj(-other_wbits)
 
         def send(self, frame):
-            if not frame.rsv1 and not isinstance(frame, ControlFrame):
+            # FIXME: this does not seem to work properly on Android
+            if not frame.rsv1 and not isinstance(frame, ControlFrame) and \
+                   len(frame.payload) > DeflateFrame.COMPRESSION_THRESHOLD:
                 frame.rsv1 = True
-                frame.payload = self.deflate(frame.payload)
+                frame.payload = self.deflate(frame)
 
             return frame
 
@@ -65,23 +60,23 @@ class DeflateFrame(Extension):
 
             return frame
 
-        def deflate(self, data):
-            if self.no_context_takeover:
-                defl = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
-                                        zlib.DEFLATED, -self.max_window_bits)
-                # FIXME: why the '\x00' below? This was borrowed from
-                # https://github.com/fancycode/tornado/blob/bc317b6dcf63608ff004ff1f57073be0504b6550/tornado/websocket.py#L91
-                return defl.compress(data) + defl.flush(zlib.Z_FINISH) + '\x00'
+        def deflate(self, frame):
+            compressed = self.defl.compress(frame.payload)
 
-            compressed = self.defl.compress(data)
-            compressed += self.defl.flush(zlib.Z_SYNC_FLUSH)
-            assert compressed[-4:] == '\x00\x00\xff\xff'
-            return compressed[:-4]
+            if frame.final or self.no_context_takeover:
+                compressed += self.defl.flush(zlib.Z_FINISH) + '\x00'
+                self.defl = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
+                        zlib.DEFLATED, -self.max_window_bits)
+            else:
+                compressed += self.defl.flush(zlib.Z_SYNC_FLUSH)
+                assert compressed[-4:] == '\x00\x00\xff\xff'
+                compressed = compressed[:-4]
+
+            return compressed
 
         def inflate(self, data):
-            data = self.dec.decompress(str(data + '\x00\x00\xff\xff'))
-            assert not self.dec.unused_data
-            return data
+            return self.dec.decompress(data + '\x00\x00\xff\xff') + \
+                   self.dec.flush(zlib.Z_SYNC_FLUSH)
 
 
 class WebkitDeflateFrame(DeflateFrame):

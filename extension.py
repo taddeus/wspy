@@ -19,22 +19,30 @@ class Extension(object):
         self.request = dict(self.__class__.request)
         self.request.update(request)
 
+        self.init()
+
     def __str__(self):
         return '<Extension "%s" defaults=%s request=%s>' \
                % (self.name, self.defaults, self.request)
+
+    def init(self):
+        return NotImplemented
 
     def create_hook(self, **kwargs):
         params = {}
         params.update(self.defaults)
         params.update(kwargs)
-        return self.Hook(self, **params)
+        hook = self.Hook(**params)
+        hook.init(self)
+        return hook
 
     class Hook:
-        def __init__(self, extension, **kwargs):
-            self.extension = extension
-
+        def __init__(self, **kwargs):
             for param, value in kwargs.iteritems():
                 setattr(self, param, value)
+
+        def init(self, extension):
+            return NotImplemented
 
         def send(self, frame):
             return frame
@@ -43,28 +51,19 @@ class Extension(object):
             return frame
 
 
-def filter_extensions(extensions):
-    """
-    Remove extensions that use conflicting rsv bits and/or opcodes, with the
-    first options being the most preferable.
-    """
+def extension_conflicts(ext, existing):
     rsv1_reserved = False
     rsv2_reserved = False
     rsv3_reserved = False
-    opcodes_reserved = []
-    compat = []
+    reserved_opcodes = []
 
-    for ext in extensions:
-        if ext.rsv1 and rsv1_reserved \
-                or ext.rsv2 and rsv2_reserved \
-                or ext.rsv3 and rsv3_reserved \
-                or len(set(ext.opcodes) & set(opcodes_reserved)):
-            continue
+    for e in existing:
+        rsv1_reserved |= e.rsv1
+        rsv2_reserved |= e.rsv2
+        rsv3_reserved |= e.rsv3
+        reserved_opcodes.extend(e.opcodes)
 
-        rsv1_reserved |= ext.rsv1
-        rsv2_reserved |= ext.rsv2
-        rsv3_reserved |= ext.rsv3
-        opcodes_reserved.extend(ext.opcodes)
-        compat.append(ext)
-
-    return compat
+    return ext.rsv1 and rsv1_reserved \
+            or ext.rsv2 and rsv2_reserved \
+            or ext.rsv3 and rsv3_reserved \
+            or len(set(ext.opcodes) & set(reserved_opcodes))

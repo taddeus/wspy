@@ -35,7 +35,7 @@ class websocket(object):
     >>> sock.connect(('', 8000))
     >>> sock.send(wspy.Frame(wspy.OPCODE_TEXT, 'Hello, Server!'))
     """
-    def __init__(self, sock=None, protocols=[], extensions=[], origin=None,
+    def __init__(self, sock=None, origin=None, protocols=[], extensions=[],
                  location='/', trusted_origins=[], locations=[], auth=None,
                  recv_callback=None, sfamily=socket.AF_INET, sproto=0):
         """
@@ -44,12 +44,13 @@ class websocket(object):
         `sock` is an optional regular TCP socket to be used for sending binary
         data. If not specified, a new socket is created.
 
-        `protocols` is a list of supported protocol names.
-
-        `extensions` is a list of supported extensions (`Extension` instances).
-
         `origin` (for client sockets) is the value for the "Origin" header sent
         in a client handshake .
+
+        `protocols` is a list of supported protocol names.
+
+        `extensions` (for server sockets) is a list of supported extensions
+        (`Extension` instances).
 
         `location` (for client sockets) is optional, used to request a
         particular resource in the HTTP handshake. In a URL, this would show as
@@ -80,6 +81,7 @@ class websocket(object):
         """
         self.protocols = protocols
         self.extensions = extensions
+        self.extension_hooks = []
         self.origin = origin
         self.location = location
         self.trusted_origins = trusted_origins
@@ -90,15 +92,15 @@ class websocket(object):
 
         self.handshake_sent = False
 
-        self.hooks_send = []
-        self.hooks_recv = []
-
         self.sendbuf_frames = []
         self.sendbuf = ''
         self.recvbuf = ''
         self.recv_callback = recv_callback
 
         self.sock = sock or socket.socket(sfamily, socket.SOCK_STREAM, sproto)
+
+    def set_extensions(self, extensions):
+        self.extensions = [ext.Hook() for ext in extensions]
 
     def __getattr__(self, name):
         if name in INHERITED_ATTRS:
@@ -132,29 +134,31 @@ class websocket(object):
         ClientHandshake(self).perform()
         self.handshake_sent = True
 
+    def apply_send_hooks(self, frame):
+        for hook in self.extension_hooks:
+            frame = hook.send(frame)
+
+        return frame
+
+    def apply_recv_hooks(self, frame):
+        for hook in reversed(self.extension_hooks):
+            frame = hook.recv(frame)
+
+        return frame
+
     def send(self, *args):
         """
         Send a number of frames.
         """
         for frame in args:
-            for hook in self.hooks_send:
-                frame = hook(frame)
-
-            #print 'send frame:', frame, 'to %s:%d' % self.sock.getpeername()
-            self.sock.sendall(frame.pack())
+            self.sock.sendall(self.apply_send_hooks(frame).pack())
 
     def recv(self):
         """
         Receive a single frames. This can be either a data frame or a control
         frame.
         """
-        frame = receive_frame(self.sock)
-
-        for hook in self.hooks_recv:
-            frame = hook(frame)
-
-        #print 'receive frame:', frame, 'from %s:%d' % self.sock.getpeername()
-        return frame
+        return self.apply_recv_hooks(receive_frame(self.sock))
 
     def recvn(self, n):
         """
@@ -170,9 +174,7 @@ class websocket(object):
         frame has been fully written. `recv_callback` is an optional callable
         to quickly set the `recv_callback` attribute to.
         """
-        for hook in self.hooks_send:
-            frame = hook(frame)
-
+        frame = self.apply_send_hooks(frame)
         self.sendbuf += frame.pack()
         self.sendbuf_frames.append([frame, len(self.sendbuf), callback])
 
@@ -181,7 +183,8 @@ class websocket(object):
 
     def do_async_send(self):
         """
-        Send any queued data.
+        Send any queued data. This function should only be called after a write
+        event on a file descriptor.
         """
         assert len(self.sendbuf)
 
@@ -204,6 +207,8 @@ class websocket(object):
 
     def do_async_recv(self, bufsize):
         """
+        Receive any completed frames from the socket. This function should only
+        be called after a read event on a file descriptor.
         """
         data = self.sock.recv(bufsize)
 
@@ -214,6 +219,7 @@ class websocket(object):
 
         while contains_frame(self.recvbuf):
             frame, self.recvbuf = pop_frame(self.recvbuf)
+            frame = self.apply_recv_hooks(frame)
 
             if not self.recv_callback:
                 raise ValueError('no callback installed for %s' % frame)
@@ -237,37 +243,3 @@ class websocket(object):
 
         self.secure = True
         self.sock = ssl.wrap_socket(self.sock, *args, **kwargs)
-
-    def add_hook(self, send=None, recv=None, prepend=False):
-        """
-        Add a pair of send and receive hooks that are called for each frame
-        that is sent or received. A hook is a function that receives a single
-        argument - a Frame instance - and returns a `Frame` instance as well.
-
-        `prepend` is a flag indicating whether the send hook is prepended to
-        the other send hooks. This is expecially useful when a program uses
-        extensions such as the built-in `DeflateFrame` extension. These
-        extensions are installed using these hooks as well.
-
-        For example, the following code creates a `Frame` instance for data
-        being sent and removes the instance for received data. This way, data
-        can be sent and received as if on a regular socket.
-        >>> import wspy
-        >>> sock = wspy.websocket()
-        >>> sock.add_hook(lambda data: tswpy.Frame(tswpy.OPCODE_TEXT, data),
-        >>>               lambda frame: frame.payload)
-
-        To add base64 encoding to the example above:
-        >>> import base64
-        >>> sock.add_hook(base64.encodestring, base64.decodestring, True)
-
-        Note that here `prepend=True`, so that data passed to `send()` is first
-        encoded and then packed into a frame. Of course, one could also decide
-        to add the base64 hook first, or to return a new `Frame` instance with
-        base64-encoded data.
-        """
-        if send:
-            self.hooks_send.insert(0 if prepend else -1, send)
-
-        if recv:
-            self.hooks_recv.insert(-1 if prepend else 0, recv)
