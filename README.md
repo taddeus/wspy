@@ -31,14 +31,9 @@ Here is a quick overview of the features in this library:
 Installation
 ============
 
-Using Python's package manager (note: this seems to be bugged atm):
+Using Python's package manager:
 
-    easy_install wspy
-    pip install wspy
-
-Using Git inside your project:
-
-    git submodule add https://github.com/taddeus/wspy.git
+    sudo pip install wspy
 
 
 Getting Started
