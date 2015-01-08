@@ -19,7 +19,6 @@ Here is a quick overview of the features in this library:
 - Connections, which hide the handling of control frames and automatically
   concatenate fragmented messages to individual payloads.
 - HTTP authentication during handshake.
-- An extendible server implementation.
 - Secure sockets using SSL certificates (for 'wss://...' URLs).
 - An API for implementing WebSocket extensions. Included implementations are
   [deflate-frame](http://tools.ietf.org/html/draft-tyoshino-hybi-websocket-perframe-deflate-06)
