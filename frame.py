@@ -222,10 +222,13 @@ def decode_frame(reader):
     masked = bool(b2 & 0x80)
     payload_len = b2 & 0x7F
 
+    #struct.unpack result is a tuple even if it contains exactly one item
+    #so we can't use strunct.unpack result direct when only one value,
+    #must add another un-used var to get the first value
     if payload_len == 126:
-        payload_len = struct.unpack('!H', reader.readn(2))
+        payload_len, = struct.unpack('!H', reader.readn(2))
     elif payload_len == 127:
-        payload_len = struct.unpack('!Q', reader.readn(8))
+        payload_len, = struct.unpack('!Q', reader.readn(8))
 
     if masked:
         masking_key = reader.readn(4)
