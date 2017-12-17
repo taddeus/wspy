@@ -305,12 +305,12 @@ def contains_frame(data):
 
     if payload_len == 126:
         if len(data) > 4:
-            payload_len = struct.unpack('!H', data[2:4])
+            payload_len = struct.unpack('!H', data[2:4])[0]
 
         payload_start = 4
     elif payload_len == 127:
         if len(data) > 12:
-            payload_len = struct.unpack('!Q', data[4:12])
+            payload_len = struct.unpack('!Q', data[4:12])[0]
 
         payload_start = 12
 
