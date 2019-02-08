@@ -103,7 +103,7 @@ Client example:
     import wspy
     sock = wspy.websocket(location='/my/path')
     sock.connect(('', 8000))
-    sock.send(wspy.Frame(wspy.OPCODE_TEXT, 'Hello, Server!'))
+    sock.send(wspy.Frame(wspy.OPCODE_TEXT, 'Hello, Server!', mask=True))
 
 
 Sending messages with a connection
