@@ -53,7 +53,7 @@ class Frame(object):
         `rsv1`, `rsv2` and `rsv3` are booleans indicating bit values for RSV1,
         RVS2 and RSV3, which are only non-zero if defined so by extensions.
         """
-        if mask:
+        if mask and not masking_key:
             masking_key = urandom(4)
 
         if len(masking_key) not in (0, 4):
